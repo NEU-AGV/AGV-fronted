@@ -1,0 +1,87 @@
+这份文档将详细说明前端大屏页面需要的所有数据，后端同学只需要实现这一个聚合接口，就能驱动整个页面的展示。
+
+-----
+
+### **主页大屏模块 (Dashboard) API 接口文档**
+
+#### **1. 获取大屏所有统计数据**
+
+  * **功能描述**
+    一次性获取主页大屏上所有统计卡片和可视化图表所需的数据。这是一个聚合接口，旨在优化性能，避免前端多次请求。
+
+  * **请求**
+
+      * **方法**: `GET`
+      * **路径**: `/api/dashboard/stats`
+      * **请求头 (Headers)**:
+          * `Authorization`: `Bearer <token>` (需要身份认证)
+
+  * **响应 (成功 `200 OK`)**
+
+      * **Content-Type**: `application/json`
+      * **Body**: 一个包含了所有图表和卡片数据的JSON对象。
+        ```json
+        {
+          "inspectionStats": {
+            "todayCount": 123,
+            "yesterdayCount": 98,
+            "countGrowth": 25.5
+          },
+          "defectStats": {
+            "total": 456,
+            "confirmed": 321,
+            "resolved": 280
+          },
+          "kpi": {
+            "totalDistance": "1,234.5",
+            "totalCount": "5,678"
+          },
+          "defectTypeDistribution": [
+            { "value": 102, "name": "结构裂缝" },
+            { "value": 88, "name": "渗水" },
+            { "value": 65, "name": "设备故障" },
+            { "value": 43, "name": "照明问题" },
+            { "value": 21, "name": "其他" }
+          ],
+          "personnelData": {
+            "names": ["张三", "李四", "王五", "赵六", "陈七"],
+            "tasks": [18, 25, 15, 30, 22]
+          },
+          "monthlyInspections": {
+            "months": ["1月", "2月", "3月", "4月", "5月", "6月"],
+            "counts": [110, 132, 101, 134, 90, 150]
+          },
+          "defectTrend": {
+            "dates": ["06-01", "06-02", "06-03", "06-04", "06-05", "06-06", "06-07"],
+            "newCount": [5, 8, 3, 6, 4, 9, 5],
+            "resolvedCount": [2, 4, 5, 3, 6, 7, 5]
+          }
+        }
+        ```
+
+  * **字段说明**:
+
+      * `inspectionStats` (object): “巡视数据统计”卡片
+          * `todayCount` (number): 今日巡视数
+          * `yesterdayCount` (number): 昨日巡视数
+          * `countGrowth` (number): 环比增长率 (%)
+      * `defectStats` (object): “缺陷数据统计”卡片
+          * `total` (number): 累计缺陷数
+          * `confirmed` (number): 已确认缺陷数
+          * `resolved` (number): 已处理缺陷数
+      * `kpi` (object): 中间的核心KPI卡片
+          * `totalDistance` (string): 巡视总距离 (km)，字符串格式以便包含逗号
+          * `totalCount` (string): 巡视总次数，字符串格式以便包含逗号
+      * `defectTypeDistribution` (array): “缺陷类型统计”饼图数据
+          * `value` (number): 该类型缺陷的数量
+          * `name` (string): 缺陷类型的名称
+      * `personnelData` (object): “人员数据统计”柱状图数据
+          * `names` (array of string): X轴的人员姓名列表
+          * `tasks` (array of number): Y轴的每人任务数
+      * `monthlyInspections` (object): “每月巡检次数”柱状图数据
+          * `months` (array of string): X轴的月份列表
+          * `counts` (array of number): Y轴的每月巡检次数
+      * `defectTrend` (object): “缺陷数据变化”折线图数据
+          * `dates` (array of string): X轴的日期列表
+          * `newCount` (array of number): “新增缺陷”的数据系列
+          * `resolvedCount` (array of number): “处理缺陷”的数据系列

@@ -99,31 +99,75 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import * as echarts from 'echarts';
 import TunnelScene from '@/components/dashboard/TunnelScene.vue';
+// 1. 引入新建的API
+import { getDashboardStats } from '@/api/dashboard.js';
+
+// --- 开关：设置为 true 时将调用真实API，否则使用模拟数据 ---
+const USE_REAL_API = false;
 
 const router = useRouter();
 
-// --- 数据约定 (Mock Data) ---
+// --- 数据模型：先定义一个空的结构，防止模板渲染报错 ---
 const dashboardData = reactive({
-  inspectionStats: { todayCount: 123, yesterdayCount: 98, countGrowth: 25.5 },
-  defectStats: { total: 456, confirmed: 321, resolved: 280 },
-  kpi: { totalDistance: '1,234.5', totalCount: '5,678' },
-  defectTypeDistribution: [ { value: 102, name: '结构裂缝' }, { value: 88, name: '渗水' }, { value: 65, name: '设备故障' }, { value: 43, name: '照明问题' }, { value: 21, name: '其他' } ],
-  personnelData: { names: ['张三', '李四', '王五', '赵六', '陈七'], tasks: [18, 25, 15, 30, 22] },
-  monthlyInspections: { months: ['1月', '2月', '3月', '4月', '5月', '6月'], counts: [110, 132, 101, 134, 90, 150] },
-  defectTrend: { dates: ['06-01', '06-02', '06-03', '06-04', '06-05', '06-06', '06-07'], newCount: [5, 8, 3, 6, 4, 9, 5], resolvedCount: [2, 4, 5, 3, 6, 7, 5] }
+  inspectionStats: {},
+  defectStats: {},
+  kpi: {},
+  defectTypeDistribution: [],
+  personnelData: { names: [], tasks: [] },
+  monthlyInspections: { months: [], counts: [] },
+  defectTrend: { dates: [], newCount: [], resolvedCount: [] }
 });
 
-// --- ECharts 实例引用 ---
+// ECharts 实例引用
 const defectTypePieChart = ref(null);
 const personnelBarChart = ref(null);
 const monthlyInspectionBarChart = ref(null);
 const defectTrendLineChart = ref(null);
+let allCharts = [];
 
-let allCharts = []; // 用于统一管理图表实例
+// --- 2. 新增：获取大屏数据的方法 ---
+const fetchDashboardData = async () => {
+  if (USE_REAL_API) {
+    try {
+      const realData = await getDashboardStats();
+      // 将获取到的真实数据赋值给 dashboardData
+      Object.assign(dashboardData, realData);
+    } catch (error) {
+      console.error("获取大屏数据失败:", error);
+    }
+  } else {
+    // 模拟数据逻辑
+    const mockData = {
+      inspectionStats: { todayCount: 123, yesterdayCount: 98, countGrowth: 25.5 },
+      defectStats: { total: 456, confirmed: 321, resolved: 280 },
+      kpi: { totalDistance: '1,234.5', totalCount: '5,678' },
+      defectTypeDistribution: [ { value: 102, name: '结构裂缝' }, { value: 88, name: '渗水' }, { value: 65, name: '设备故障' }, { value: 43, name: '照明问题' }, { value: 21, name: '其他' } ],
+      personnelData: { names: ['张三', '李四', '王五', '赵六', '陈七'], tasks: [18, 25, 15, 30, 22] },
+      monthlyInspections: { months: ['1月', '2月', '3月', '4月', '5月', '6月'], counts: [110, 132, 101, 134, 90, 150] },
+      defectTrend: { dates: ['06-01', '06-02', '06-03', '06-04', '06-05', '06-06', '06-07'], newCount: [5, 8, 3, 6, 4, 9, 5], resolvedCount: [2, 4, 5, 3, 6, 7, 5] }
+    };
+    Object.assign(dashboardData, mockData);
+  }
+};
 
-// --- ECharts 初始化和配置 ---
-onMounted(() => {
-  // 1. 初始化缺陷类型饼图
+// --- 3. 修改 onMounted，先获取数据再初始化图表 ---
+onMounted(async () => {
+  // 首先获取数据
+  await fetchDashboardData();
+
+  // 然后用获取到的数据初始化所有 ECharts 图表
+  initCharts();
+
+  window.addEventListener('resize', handleResize);
+});
+
+// ECharts 初始化逻辑封装成一个函数
+const initCharts = () => {
+  // 清空旧的图表实例
+  allCharts.forEach(chart => chart.dispose());
+  allCharts = [];
+
+  // 初始化缺陷类型饼图
   const pieChart = echarts.init(defectTypePieChart.value);
   pieChart.setOption({
     tooltip: { trigger: 'item' },
@@ -138,7 +182,7 @@ onMounted(() => {
   });
   allCharts.push(pieChart);
 
-  // 2. 初始化人员数据柱状图
+  // 初始化人员数据柱状图
   const barChart1 = echarts.init(personnelBarChart.value);
   barChart1.setOption({
     tooltip: { trigger: 'axis' },
@@ -149,7 +193,7 @@ onMounted(() => {
   });
   allCharts.push(barChart1);
 
-  // 3. 初始化每月巡检次数柱状图
+  // 初始化每月巡检次数柱状图
   const barChart2 = echarts.init(monthlyInspectionBarChart.value);
   barChart2.setOption({
     tooltip: { trigger: 'axis' },
@@ -160,7 +204,7 @@ onMounted(() => {
   });
   allCharts.push(barChart2);
 
-  // 4. 初始化缺陷数据变化折线图
+  // 初始化缺陷数据变化折线图
   const lineChart = echarts.init(defectTrendLineChart.value);
   lineChart.setOption({
     tooltip: { trigger: 'axis' },
@@ -174,27 +218,16 @@ onMounted(() => {
     ]
   });
   allCharts.push(lineChart);
+};
 
-  window.addEventListener('resize', handleResize);
-});
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
 });
 
-// --- 辅助函数 ---
-const handleResize = () => {
-  allCharts.forEach(chart => chart.resize());
-}
-
-const getGrowthClass = (growth) => {
-  return growth >= 0 ? 'positive' : 'negative';
-};
-
-// --- 页面跳转 ---
-const goToSystem = () => {
-  router.push('/tasks');
-}
+const handleResize = () => { allCharts.forEach(chart => chart.resize()); };
+const getGrowthClass = (growth) => { return growth >= 0 ? 'positive' : 'negative'; };
+const goToSystem = () => { router.push('/tasks'); };
 </script>
 
 <style scoped>

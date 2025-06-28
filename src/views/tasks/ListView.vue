@@ -92,6 +92,11 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Refresh, Download } from '@element-plus/icons-vue';
+// 1. 引入新建的API
+import { getTasks, deleteTask, exportTasks } from '@/api/tasks.js';
+
+// --- 开关：设置为 true 时将调用真实API ---
+const USE_REAL_API = false;
 
 const emit = defineEmits(['view-detail']);
 
@@ -109,41 +114,76 @@ const mockDataSource = [
 ];
 
 const tableRowClassName = ({ row }) => { if (row.taskId === highlightedTaskId.value) { return 'highlighted-row'; } return ''; };
-const fetchData = () => {
+
+// 2. 改造核心数据获取方法
+const fetchData = async () => {
   loading.value = true;
-  setTimeout(() => {
-    const filteredData = mockDataSource.filter(item => {
-      const plannedDate = new Date(item.plannedStartTime);
-      const plannedRange = searchForm.plannedDateRange;
-      const isPlannedDateInRange = !plannedRange || (plannedDate >= plannedRange[0] && plannedDate <= plannedRange[1]);
-      const actualDate = item.actualStartTime ? new Date(item.actualStartTime) : null;
-      const actualRange = searchForm.actualDateRange;
-      const isActualDateInRange = !actualRange || (actualDate && actualDate >= actualRange[0] && actualDate <= actualRange[1]);
-      return (
-          item.taskId.includes(searchForm.taskId) &&
-          item.taskName.includes(searchForm.taskName) &&
-          item.creator.includes(searchForm.creator) &&
-          item.executor.includes(searchForm.executor) &&
-          (!searchForm.status || item.status === searchForm.status) &&
-          isPlannedDateInRange &&
-          isActualDateInRange
-      );
-    });
-    pagination.total = filteredData.length;
-    const start = (pagination.currentPage - 1) * pagination.pageSize;
-    const end = start + pagination.pageSize;
-    tableData.value = filteredData.slice(start, end);
-    loading.value = false;
-  }, 500);
-};
+  if (USE_REAL_API) {
+    try {
+      const params = {
+        page: pagination.currentPage,
+        pageSize: pagination.pageSize,
+        ...searchForm
+      };
+      // 实际调用API
+      const response = await getTasks(params);
+      tableData.value = response.list;
+      pagination.total = response.total;
+    } catch (error) {
+      console.error("获取任务列表失败:", error);
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    setTimeout(() => {
+      const filteredData = mockDataSource.filter(item => {
+        const plannedDate = new Date(item.plannedStartTime);
+        const plannedRange = searchForm.plannedDateRange;
+        const isPlannedDateInRange = !plannedRange || (plannedDate >= plannedRange[0] && plannedDate <= plannedRange[1]);
+        const actualDate = item.actualStartTime ? new Date(item.actualStartTime) : null;
+        const actualRange = searchForm.actualDateRange;
+        const isActualDateInRange = !actualRange || (actualDate && actualDate >= actualRange[0] && actualDate <= actualRange[1]);
+        return (
+            item.taskId.includes(searchForm.taskId) &&
+            item.taskName.includes(searchForm.taskName) &&
+            item.creator.includes(searchForm.creator) &&
+            item.executor.includes(searchForm.executor) &&
+            (!searchForm.status || item.status === searchForm.status) &&
+            isPlannedDateInRange &&
+            isActualDateInRange
+        );
+      });
+      pagination.total = filteredData.length;
+      const start = (pagination.currentPage - 1) * pagination.pageSize;
+      const end = start + pagination.pageSize;
+      tableData.value = filteredData.slice(start, end);
+      loading.value = false;
+    }, 500);
+  }
+}
 
 onMounted(() => { fetchData(); });
+const handleDelete = async (row) => {
+  await ElMessageBox.confirm(`确定删除任务 "${row.taskName}"?`, '提示', { type: 'warning' });
+  if (USE_REAL_API) {
+    try {
+      await deleteTask(row.taskId);
+      ElMessage.success('删除成功');
+      fetchData();
+    } catch(error) { /* Interceptor handles message */ }
+  } else {
+    // 模拟删除
+    const index = mockDataSource.findIndex(item => item.id === row.id);
+    if (index !== -1) mockDataSource.splice(index, 1);
+    ElMessage.success('删除成功（模拟）');
+    fetchData();
+  }
+}
 const handleSearch = () => { pagination.currentPage = 1; fetchData(); };
 const handleReset = () => { Object.keys(searchForm).forEach(key => { searchForm[key] = key.includes('DateRange') ? null : ''; }); handleSearch(); };
 const handleExport = () => { ElMessage.info('导出功能待实现'); };
 const viewTaskDetail = (task) => { emit('view-detail', task); };
 const getStatusTagType = (status) => { switch (status) { case '已完成': return 'success'; case '进行中': return 'primary'; case '已暂停': return 'warning'; case '已取消': return 'info'; default: return 'info'; }};
-const handleDelete = (row) => { ElMessageBox.confirm(`确定删除任务 "${row.taskName}"?`, '提示', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }).then(() => { ElMessage.success('删除成功'); fetchData(); }); };
 const handleSizeChange = (newSize) => { pagination.pageSize = newSize; fetchData(); };
 const handleCurrentChange = (newPage) => { pagination.currentPage = newPage; fetchData(); };
 </script>

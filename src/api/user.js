@@ -25,20 +25,18 @@ export const register = (data) => {
 }
 
 /**
- * 发送邮箱验证码
+ * 发送邮箱验证码 (用于注册或找回密码)
  * @param {string} email - 目标邮箱地址
- * @returns {Promise<any>}
  */
 export const sendEmailCode = (email) => {
-    // 通常发送邮件验证码的接口会把邮箱作为参数
     return api.post('/send-email-code', { email })
 }
 
 
 /**
  * 获取当前登录用户的信息
- * @returns {Promise<object>}
+ * (登录成功后调用)
  */
 export const getUserInfo = () => {
-    return api.get('/user/info')
+    return api.get('/user/profile')
 }

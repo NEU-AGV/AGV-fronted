@@ -71,10 +71,11 @@
 import { ref, reactive, onMounted, computed, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, EditPen, Delete } from '@element-plus/icons-vue';
+import { getDepartments, addDepartment, updateDepartment, deleteDepartment } from '@/api/system.js';
 
-// --- 数据模型 ---
+const USE_REAL_API = false;
+
 const treeData = ref([]);
-
 const dialog = reactive({ visible: false, title: '' });
 const deptFormRef = ref(null);
 const deptForm = reactive({
@@ -100,10 +101,17 @@ const treeDataWithOptions = computed(() => {
   return [{ deptId: 0, deptName: '根部门', children: treeData.value }];
 });
 
-// --- 方法 ---
-onMounted(() => {
-  treeData.value = mockDeptDataSource;
-});
+const fetchDepartments = async () => {
+  if (USE_REAL_API) {
+    try {
+      treeData.value = await getDepartments();
+    } catch (error) { console.error(error); }
+  } else {
+    treeData.value = mockDeptDataSource;
+  }
+};
+
+onMounted(() => { fetchDepartments(); });
 
 const handleAdd = (data) => {
   // 重置表单
@@ -125,21 +133,37 @@ const handleEdit = (data) => {
   nextTick(() => Object.assign(deptForm, data));
 };
 
-const handleDelete = (data) => {
-  ElMessageBox.confirm(
-      `是否确认删除名称为 "${data.deptName}" 的数据项? 如果存在子部门，也将会一同被删除。`,
-      '提示',
-      { type: 'warning' }
-  ).then(() => ElMessage.success('删除成功（模拟）'));
+const handleDelete = async (data) => {
+  await ElMessageBox.confirm(`是否确认删除名称为 "${data.deptName}" 的数据项? 如果存在子部门，也将会一同被删除。`, '提示', { type: 'warning' });
+  if (USE_REAL_API) {
+    try {
+      await deleteDepartment(data.deptId);
+      ElMessage.success('删除成功！');
+      fetchDepartments();
+    } catch(error) { /* ... */ }
+  } else {
+    ElMessage.success('删除成功（模拟）');
+  }
 };
 
-const handleSubmit = () => {
-  deptFormRef.value.validate(valid => {
-    if (valid) {
-      ElMessage.success('保存成功（模拟）');
+const handleSubmit = async () => {
+  await deptFormRef.value.validate();
+  if (USE_REAL_API) {
+    try {
+      if (deptForm.deptId) {
+        await updateDepartment(deptForm.deptId, deptForm);
+        ElMessage.success('修改成功！');
+      } else {
+        await addDepartment(deptForm);
+        ElMessage.success('新增成功！');
+      }
       dialog.visible = false;
-    }
-  });
+      fetchDepartments();
+    } catch (error) { /* ... */ }
+  } else {
+    ElMessage.success('保存成功（模拟）');
+    dialog.visible = false;
+  }
 };
 </script>
 

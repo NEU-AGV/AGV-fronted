@@ -118,8 +118,12 @@
 import { ref, reactive, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Refresh, Plus, EditPen, Delete, Key, View } from '@element-plus/icons-vue';
+// 1. 引入所有需要用到的API函数
+import { getUsers, updateUserStatus, addUser, updateUser, deleteUsers } from '@/api/system.js';
 
-// --- 数据模型 ---
+// --- 开关：设置为 true 时将调用真实API ---
+const USE_REAL_API = false;
+
 const loading = ref(false);
 const searchForm = reactive({ username: '', phone: '', status: '' });
 const userTableData = ref([]);
@@ -153,9 +157,16 @@ onMounted(() => {
   fetchUsers();
 });
 
-// 关键改动：重写 fetchUsers 函数以支持筛选和分页
-const fetchUsers = () => {
+const fetchUsers = async () => {
   loading.value = true;
+  if (USE_REAL_API) {
+    try {
+      const params = { page: pagination.currentPage, pageSize: pagination.pageSize, ...searchForm };
+      const res = await getUsers(params);
+      userTableData.value = res.list;
+      pagination.total = res.total;
+    } catch (error) { console.error(error); } finally { loading.value = false; }
+  } else {
   setTimeout(() => {
     // 模拟筛选逻辑
     const filteredData = mockUserDataSource.filter(item => {
@@ -178,7 +189,7 @@ const fetchUsers = () => {
 
     loading.value = false;
   }, 300);
-};
+}}
 
 // 关键改动：修复 handleSearch 函数
 const handleSearch = () => {
@@ -193,14 +204,71 @@ const handleReset = () => {
   handleSearch(); // 调用修复后的搜索方法
 };
 
+const handleStatusChange = async (row) => {
+  if (USE_REAL_API) {
+    try {
+      await updateUserStatus(row.userId, row.status);
+      ElMessage.success(`状态更新成功！`);
+    } catch(error) {
+      // 失败时状态回滚
+      row.status = row.status === '正常' ? '禁用' : '正常';
+    }
+  } else {
+    ElMessage.success(`用户 [${row.realName}] 的状态已更新为: ${row.status}`);
+  }
+};
+const handleSubmit = async () => {
+  await userFormRef.value.validate();
+  if (USE_REAL_API) {
+    try {
+      if (dialog.mode === 'add') {
+        await addUser(userForm);
+        ElMessage.success('新增用户成功！');
+      } else {
+        await updateUser(userForm.userId, userForm);
+        ElMessage.success('编辑用户成功！');
+      }
+      dialog.visible = false;
+      fetchUsers(); // 成功后刷新列表
+    } catch (error) { /* ElMessage is handled in interceptor */ }
+  } else {
+    ElMessage.success('操作成功（模拟）');
+    dialog.visible = false;
+  }
+};
+
+// 3. 改造“删除”方法
+const handleDelete = async (row) => {
+  await ElMessageBox.confirm(`确定删除用户 "${row.realName}"?`, '提示', { type: 'warning' });
+  if (USE_REAL_API) {
+    try {
+      await deleteUsers([row.userId]); // 后端接口接收ID数组
+      ElMessage.success('删除成功！');
+      fetchUsers();
+    } catch (error) { /* Interceptor handles message */ }
+  } else {
+    ElMessage.success('删除成功（模拟）');
+  }
+};
+
+// 4. 改造“批量删除”方法
+const handleDeleteMulti = async () => {
+  await ElMessageBox.confirm(`确定删除选中的 ${selectedUsers.value.length} 个用户?`, '提示', { type: 'warning' });
+  if (USE_REAL_API) {
+    try {
+      const ids = selectedUsers.value.map(user => user.userId);
+      await deleteUsers(ids);
+      ElMessage.success('批量删除成功！');
+      fetchUsers();
+    } catch (error) { /* Interceptor handles message */ }
+  } else {
+    ElMessage.success('批量删除成功（模拟）');
+  }
+};
 const handleSelectionChange = (selection) => { selectedUsers.value = selection; };
 const handleAdd = () => { dialog.mode = 'add'; dialog.title = '新增用户'; dialog.visible = true; };
 const handleEdit = (row) => { dialog.mode = 'edit'; dialog.title = '编辑用户'; dialog.visible = true; nextTick(() => { Object.assign(userForm, row); }); };
 const handleDialogClose = () => { userFormRef.value?.resetFields(); Object.keys(userForm).forEach(key => { if (key === 'roleIds') userForm[key] = []; else if (key === 'status') userForm[key] = '正常'; else userForm[key] = null; }) };
-const handleSubmit = () => { userFormRef.value.validate((valid) => { if (valid) { ElMessage.success('操作成功（模拟）'); dialog.visible = false; fetchUsers(); } }); };
-const handleStatusChange = (row) => { ElMessage.success(`用户 [${row.realName}] 的状态已更新为: ${row.status}`); };
-const handleDelete = (row) => { ElMessageBox.confirm(`确定删除用户 "${row.realName}"?`, '提示', { type: 'warning' }).then(() => ElMessage.success('删除成功')); };
-const handleDeleteMulti = () => { ElMessageBox.confirm('确定删除选中的用户?', '提示', { type: 'warning' }).then(() => ElMessage.success('批量删除成功')); };
 const handleResetPwd = (row) => { ElMessage.info(`重置 ${row.username} 的密码`); };
 const handleViewLog = (row) => { ElMessage.info(`查看 ${row.username} 的登录日志`); };
 const handleSizeChange = (val) => { pagination.pageSize = val; fetchUsers(); };

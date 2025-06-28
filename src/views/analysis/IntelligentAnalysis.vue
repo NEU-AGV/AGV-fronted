@@ -88,25 +88,26 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Picture } from '@element-plus/icons-vue';
+// 1. 引入所有需要的API函数
+import { getTasks } from '@/api/tasks.js';
+import { addDefect } from '@/api/defects.js';
+import { getVideoSource } from '@/api/analysis.js';
+
+// --- 开关：设置为 true 时将调用真实API ---
+const USE_REAL_API = false;
 
 const defectFormRef = ref(null);
-let wsSimulator = null;
+let wsConnection = null; // 用于真实的WebSocket连接
+let wsSimulator = null;  // 用于模拟的定时器
 
+const videoUrl = ref('');
 const detectedDefects = ref([]);
 const selectedDefectImage = ref(null);
-const mockTasks = ref([
-  { taskId: 'TASK-20250626-001', taskName: '1号线隧道巡检' },
-  { taskId: 'TASK-20250627-001', taskName: '2号线设备检查' },
-]);
+const mockTasks = ref([]);
 
-// 表单数据模型已更新
 const defectForm = reactive({
-  linkedTaskId: '',
-  defectType: '',
-  severity: '',
-  description: '',
-  location: '', // 新增
-  discoverer: 'admin',
+  linkedTaskId: '', defectType: '', severity: '',
+  description: '', location: '', discoverer: 'admin',
 });
 const defectFormRules = {
   linkedTaskId: [{ required: true, message: '请关联一个任务', trigger: 'change' }],
@@ -116,12 +117,37 @@ const defectFormRules = {
   discoverer: [{ required: true, message: '请输入发现人员姓名', trigger: 'blur' }], // 新增验证
 };
 
-onMounted(() => {
-  let imageCounter = 0;
-  const sampleImages = [ /* ... */ ];
-  const sampleTypes = ['裂缝', '渗水', '脱落'];
-  const sampleLocations = ['K10+500', 'K12+100', 'K15+800'];
+// 2. 改造 onMounted，区分真实和模拟逻辑
+onMounted(async () => {
+  if (USE_REAL_API) {
+    // --- 真实API逻辑 ---
+    // 1. 获取视频流地址
+    try {
+      const res = await getVideoSource();
+      videoUrl.value = res.url;
+    } catch (error) { console.error("获取视频流失败:", error); }
 
+    // 2. 获取任务列表用于下拉框
+    try {
+      const res = await getTasks({ page: 1, pageSize: 100 }); // 获取前100个任务作选项
+      mockTasks.value = res.list;
+    } catch (error) { console.error("获取任务列表失败:", error); }
+
+    // 3. 建立WebSocket连接
+    wsConnection = new WebSocket('ws://your-server.com/ws/cv-analysis');
+    wsConnection.onmessage = (event) => {
+      const newDefect = JSON.parse(event.data);
+      if (newDefect.type === 'NEW_DEFECT_DETECTED') {
+        detectedDefects.value.unshift(newDefect.payload);
+      }
+    };
+  } else {
+    // --- 模拟数据逻辑 (保持不变) ---
+    videoUrl.value = "https://www.w3schools.com/html/mov_bbb.mp4";
+    mockTasks.value = [
+      { taskId: 'TASK-20250626-001', taskName: '1号线隧道巡检' },
+      { taskId: 'TASK-20250627-001', taskName: '2号线设备检查' },
+    ];
   wsSimulator = setInterval(() => {
     if (detectedDefects.value.length > 10) return;
     const newDefect = {
@@ -136,10 +162,14 @@ onMounted(() => {
     };
     detectedDefects.value.unshift(newDefect);
     imageCounter++;
-  }, 5000);
+  }, 5000);}
 });
 
-onUnmounted(() => { clearInterval(wsSimulator); });
+onUnmounted(() => {
+  // 组件销毁时，关闭连接或清除定时器
+  if (wsConnection) wsConnection.close();
+  if (wsSimulator) clearInterval(wsSimulator);
+});
 
 const selectDefectImage = (defect) => {
   selectedDefectImage.value = defect;
@@ -147,12 +177,12 @@ const selectDefectImage = (defect) => {
   defectForm.location = defect.preliminary.location; // 预填位置信息
 };
 
-const handleSubmit = () => {
-  defectFormRef.value.validate(valid => {
-    if (valid) {
-      const taskName = mockTasks.value.find(t => t.taskId === defectForm.linkedTaskId)?.taskName || '';
-      // 组装成与缺陷管理页面一致的、完整的缺陷数据结构
-      const finalDefectData = {
+// 3. 改造 handleSubmit，调用真实API
+const handleSubmit = async () => {
+  await defectFormRef.value.validate();
+
+  const taskName = mockTasks.value.find(t => t.taskId === defectForm.linkedTaskId)?.taskName || '';
+  const finalDefectData = {
         id: Date.now(),
         defectId: `DEF-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`,
         taskId: defectForm.linkedTaskId,
@@ -176,14 +206,17 @@ const handleSubmit = () => {
         handlingResult: '',
       };
 
-      console.log('准备提交到后端的缺陷数据对象:', finalDefectData);
-      ElMessage.success('提交成功！请在浏览器控制台查看数据对象。');
-
-      detectedDefects.value = detectedDefects.value.filter(d => d.imageId !== selectedDefectImage.value.imageId);
-      selectedDefectImage.value = null;
-      defectFormRef.value.resetFields();
-    }
-  });
+  if (USE_REAL_API) {
+    try {
+      await addDefect(finalDefectData);
+      ElMessage.success('缺陷记录提交成功！');
+      // ... (提交成功后的清理逻辑)
+    } catch (error) { /* ElMessage is handled in interceptor */ }
+  } else {
+    console.log('准备提交到后端的缺陷数据对象:', finalDefectData);
+    ElMessage.success('提交成功！请在浏览器控制台查看数据对象。');
+    // ... (提交成功后的清理逻辑)
+  }
 };
 </script>
 

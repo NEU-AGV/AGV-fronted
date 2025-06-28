@@ -97,9 +97,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick, markRaw } from 'vue'; // 1. 引入 markRaw
+import { ref, reactive, onMounted, nextTick, markRaw } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, EditPen, Delete, User, Avatar, Menu, OfficeBuilding, Key } from '@element-plus/icons-vue';
+import { getMenus, addMenu, updateMenu, deleteMenu } from '@/api/system.js';
+
+const USE_REAL_API = false;
 
 const loading = ref(false);
 const tableData = ref([]);
@@ -131,10 +134,22 @@ const mockMenuDataSource = [
   { menuId: 2, menuName: '任务管理', parentId: 0, menuType: 'C', path: '/tasks', icon: markRaw(Menu), orderNum: 2, perms: 'task:list', component: 'tasks/index', status: '正常', createTime: '2024-01-01 10:00:00' },
 ];
 
-onMounted(() => {
-  tableData.value = mockMenuDataSource;
-  menuOptions.value = [{ menuId: 0, menuName: '主类目', children: mockMenuDataSource }];
-});
+const fetchMenus = async () => {
+  loading.value = true;
+  if (USE_REAL_API) {
+    try {
+      const menus = await getMenus();
+      tableData.value = menus;
+      menuOptions.value = [{ menuId: 0, menuName: '主类目', children: menus }];
+    } catch(error) { console.error(error); } finally { loading.value = false; }
+  } else {
+    tableData.value = mockMenuDataSource;
+    menuOptions.value = [{ menuId: 0, menuName: '主类目', children: mockMenuDataSource }];
+    loading.value = false;
+  }
+};
+
+onMounted(() => { fetchMenus(); });
 
 const handleAdd = (row) => {
   // 重置表单
@@ -157,15 +172,37 @@ const handleEdit = (row) => {
   nextTick(() => Object.assign(menuForm, row));
 };
 
-const handleDelete = (row) => {
-  ElMessageBox.confirm(`是否确认删除名称为"${row.menuName}"的数据项? 同时会删除其所有子项。`, '提示', {
-    type: 'warning',
-  }).then(() => ElMessage.success('删除成功（模拟）'));
+const handleDelete = async (row) => {
+  await ElMessageBox.confirm(`是否确认删除名称为"${row.menuName}"的数据项? 同时会删除其所有子项。`, '提示', { type: 'warning' });
+  if (USE_REAL_API) {
+    try {
+      await deleteMenu(row.menuId);
+      ElMessage.success('删除成功！');
+      fetchMenus();
+    } catch(error) { /* ... */ }
+  } else {
+    ElMessage.success('删除成功（模拟）');
+  }
 };
 
-const handleSubmit = () => {
-  ElMessage.success('保存成功（模拟）');
-  dialog.visible = false;
+const handleSubmit = async () => {
+  await menuFormRef.value.validate();
+  if (USE_REAL_API) {
+    try {
+      if (menuForm.menuId) {
+        await updateMenu(menuForm.menuId, menuForm);
+        ElMessage.success('修改成功！');
+      } else {
+        await addMenu(menuForm);
+        ElMessage.success('新增成功！');
+      }
+      dialog.visible = false;
+      fetchMenus();
+    } catch(error) { /* ... */ }
+  } else {
+    ElMessage.success('保存成功（模拟）');
+    dialog.visible = false;
+  }
 };
 </script>
 

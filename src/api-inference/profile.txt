@@ -1,0 +1,125 @@
+
+### **用户中心模块 (Profile) API 接口文档**
+
+#### **1. 获取当前用户个人资料**
+
+  * **功能描述**
+    获取当前已登录用户的详细个人信息，用于在个人中心页面进行展示和填充编辑表单。
+
+  * **请求**
+
+      * **方法**: `GET`
+      * **路径**: `/api/user/profile`
+      * **请求头 (Headers)**:
+          * `Authorization`: `Bearer <token>` (需要身份认证)
+
+  * **响应 (成功 `200 OK`)**
+
+      * **Content-Type**: `application/json`
+      * **Body**:
+        ```json
+        {
+          "username": "admin",
+          "realName": "管理员",
+          "phone": "15888888888",
+          "email": "admin@example.com",
+          "deptId": 101,
+          "departmentName": "研发部",
+          "avatarUrl": "https://path/to/avatar.png"
+        }
+        ```
+
+  * **响应 (失败)**
+
+      * **`401 Unauthorized`**: Token无效或未提供。
+
+-----
+
+#### **2. 更新用户基本资料**
+
+  * **功能描述**
+    用户在个人中心保存自己修改后的基本信息，如姓名、手机、邮箱和部门。
+
+  * **请求**
+
+      * **方法**: `PUT`
+      * **路径**: `/api/user/profile`
+      * **请求头 (Headers)**:
+          * `Authorization`: `Bearer <token>`
+      * **Content-Type**: `application/json`
+      * **Body**:
+        ```json
+        {
+          "realName": "新姓名",
+          "phone": "13900139000",
+          "email": "new-email@example.com",
+          "deptId": 102
+        }
+        ```
+
+  * **响应 (成功 `200 OK`)**
+
+      * 返回成功的消息提示。
+
+-----
+
+#### **3. 修改用户密码**
+
+  * **功能描述**
+    用户修改自己的登录密码，需要提供旧密码进行验证。
+
+  * **请求**
+
+      * **方法**: `PUT`
+      * **路径**: `/api/user/password`
+      * **请求头 (Headers)**:
+          * `Authorization`: `Bearer <token>`
+      * **Content-Type**: `application/json`
+      * **Body**:
+        ```json
+        {
+          "oldPassword": "current-password",
+          "newPassword": "a-new-strong-password"
+        }
+        ```
+
+  * **响应 (成功 `200 OK`)**
+
+      * 返回成功的消息提示。
+
+  * **响应 (失败)**
+
+      * **`400 Bad Request`**: 旧密码不正确。
+
+-----
+
+#### **4. 更新用户头像**
+
+  * **功能描述**
+    接收用户上传的新的头像图片文件，保存后返回新的图片访问地址。
+
+  * **请求**
+
+      * **方法**: `POST`
+      * **路径**: `/api/user/avatar`
+      * **请求头 (Headers)**:
+          * `Authorization`: `Bearer <token>`
+          * `Content-Type`: `multipart/form-data`
+      * **Body**: 表单数据，包含一个文件字段。
+          * `avatarfile`: (File) 用户选择的图片文件。
+
+  * **响应 (成功 `200 OK`)**
+
+      * **Content-Type**: `application/json`
+      * **Body**:
+        ```json
+        {
+          "avatarUrl": "/media/avatars/new-avatar-filename.png"
+        }
+        ```
+      * **字段说明**:
+          * `avatarUrl` (string): 服务器上存储新头像的可访问路径。
+
+  * **响应 (失败)**
+
+      * **`400 Bad Request`**: 文件过大、格式不正确等。

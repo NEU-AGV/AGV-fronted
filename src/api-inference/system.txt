@@ -1,0 +1,207 @@
+好的，我们来为功能最丰富的**系统管理**模块，整理一份完整、详细的API接口文档。
+
+这份文档将涵盖用户、角色、菜单、部门四个子模块的所有增、删、改、查（CRUD）操作，可以作为您与后端工程师协作的最终依据。
+
+-----
+
+### **系统管理模块 (System Management) API 接口文档**
+
+#### **1. 用户管理 (User Management)**
+
+  * **基础路径**: `/api/system/users`
+
+  * **1.1 获取用户列表 (分页+筛选)**
+
+      * **功能**: 查询用户列表，支持多条件模糊查询和分页。
+      * **方法**: `GET`
+      * **路径**: `/system/users`
+      * **Query 参数**:
+        | 参数名 | 类型 | 说明 |
+        | :--- | :--- | :--- |
+        | `page` | number | 当前页码 |
+        | `pageSize` | number | 每页条数 |
+        | `username` | string | 按用户名（模糊匹配）筛选 |
+        | `phone` | string | 按手机号（模糊匹配）筛选 |
+        | `status` | string | 按状态筛选，`正常` 或 `禁用` |
+      * **响应 (成功 `200 OK`)**:
+        ```json
+        {
+          "total": 2,
+          "list": [
+            {
+              "userId": 1,
+              "username": "admin",
+              "realName": "管理员",
+              "email": "admin@example.com",
+              "phone": "15888888888",
+              "deptId": 101,
+              "departmentName": "研发部",
+              "roleIds": [1],
+              "status": "正常",
+              "lastLoginTime": "2025-06-26 10:00:00",
+              "createTime": "2024-01-01 10:00:00"
+            }
+          ]
+        }
+        ```
+
+  * **1.2 新增用户**
+
+      * **方法**: `POST`
+      * **路径**: `/system/users`
+      * **请求体 (Body)**:
+        ```json
+        {
+          "username": "newuser",
+          "password": "...",
+          "realName": "新用户",
+          "email": "new@example.com",
+          "phone": "13512345678",
+          "deptId": 102,
+          "roleIds": [2],
+          "status": "正常"
+        }
+        ```
+
+  * **1.3 修改用户信息**
+
+      * **方法**: `PUT`
+      * **路径**: `/system/users/{id}` (例如: `/system/users/2`)
+      * **请求体 (Body)**: 同“新增用户”，但不包含`password`字段。
+
+  * **1.4 批量删除用户**
+
+      * **方法**: `DELETE`
+      * **路径**: `/system/users`
+      * **请求体 (Body)**:
+        ```json
+        [1, 2, 3]
+        ```
+          * *说明: 请求体为一个包含用户ID的数组。*
+
+  * **1.5 修改用户状态**
+
+      * **方法**: `PUT`
+      * **路径**: `/system/users/{id}/status`
+      * **请求体 (Body)**:
+        ```json
+        { "status": "禁用" }
+        ```
+
+-----
+
+#### **2. 角色管理 (Role Management)**
+
+  * **基础路径**: `/api/system/roles`
+
+  * **2.1 获取角色列表**
+
+      * **方法**: `GET`
+      * **路径**: `/system/roles`
+      * **Query 参数**: `roleName`, `roleCode`
+      * **响应**: 返回一个角色对象数组 `[...]`。
+
+  * **2.2 新增/修改角色**
+
+      * **方法**: `POST` (新增), `PUT` (修改)
+      * **路径**: `/system/roles` (新增), `/system/roles/{id}` (修改)
+      * **请求体 (Body)**:
+        ```json
+        {
+          "roleName": "测试角色",
+          "roleCode": "tester",
+          "status": "启用",
+          "description": "用于功能测试的角色"
+        }
+        ```
+
+  * **2.3 删除角色**
+
+      * **方法**: `DELETE`
+      * **路径**: `/system/roles/{id}`
+
+  * **2.4 分配权限**
+
+      * **方法**: `PUT`
+      * **路径**: `/system/roles/{id}/permissions`
+      * **请求体 (Body)**:
+        ```json
+        {
+          "menuIds": ["system", "system:user", "task"],
+          "dataScope": "本部门"
+        }
+        ```
+
+-----
+
+#### **3. 菜单管理 (Menu Management)**
+
+  * **基础路径**: `/api/system/menus`
+
+  * **3.1 获取菜单树**
+
+      * **功能**: 一次性获取所有菜单，以树形结构返回。
+      * **方法**: `GET`
+      * **路径**: `/system/menus`
+      * **响应**: 返回一个菜单对象数组 `[...]`，每个对象可能包含 `children` 字段。
+
+  * **3.2 新增/修改菜单**
+
+      * **方法**: `POST` (新增), `PUT` (修改)
+      * **路径**: `/system/menus` (新增), `/system/menus/{id}` (修改)
+      * **请求体 (Body)**:
+        ```json
+        {
+          "parentId": 1,
+          "menuType": "C",
+          "menuName": "新增的菜单",
+          "icon": "Document",
+          "path": "new-menu",
+          "component": "system/new/index",
+          "perms": "system:new:list",
+          "orderNum": 3,
+          "status": "正常"
+        }
+        ```
+
+  * **3.3 删除菜单**
+
+      * **方法**: `DELETE`
+      * **路径**: `/system/menus/{id}`
+      * *后端逻辑说明：需根据业务规则，同时删除所有子菜单。*
+
+-----
+
+#### **4. 部门管理 (Department Management)**
+
+  * **基础路径**: `/api/system/departments`
+
+  * **4.1 获取部门树**
+
+      * **功能**: 一次性获取所有部门，以树形结构返回。
+      * **方法**: `GET`
+      * **路径**: `/system/departments`
+      * **响应**: 返回一个部门对象数组 `[...]`，每个对象可能包含 `children` 字段。
+
+  * **4.2 新增/修改部门**
+
+      * **方法**: `POST` (新增), `PUT` (修改)
+      * **路径**: `/system/departments` (新增), `/system/departments/{id}` (修改)
+      * **请求体 (Body)**:
+        ```json
+        {
+            "parentId": 100,
+            "deptName": "新部门",
+            "orderNum": 4,
+            "leader": "新主管",
+            "phone": "13612345678",
+            "email": "newdept@example.com",
+            "status": "正常"
+        }
+        ```
+
+  * **4.3 删除部门**
+
+      * **方法**: `DELETE`
+      * **路径**: `/system/departments/{id}`
+      * *后端逻辑说明：需根据业务规则，判断该部门下是否仍有用户，并处理子部门的级联删除。*

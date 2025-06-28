@@ -68,7 +68,7 @@
       <el-table-column label="操作" width="150" fixed="right" align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="handleImagePreview(row)">查看详情</el-button>
-          <el-button link type="success">标记整改</el-button>
+          <el-button v-if="row.currentStatus !== '已整改'" link type="success" @click="handleMarkAsRectified(row)">标记整改</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -125,15 +125,19 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router'; // 1. 在这里补上引入
-import { ElMessage } from 'element-plus';
-import { Search, Refresh, Download } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Search, Refresh } from '@element-plus/icons-vue';
+// 1. 引入新建的API
+import { getDefects, updateDefectStatus } from '@/api/defects.js';
 
-const router = useRouter(); // 2. 在这里实例化 router
+// --- 开关：设置为 true 时将调用真实API ---
+const USE_REAL_API = false;
+
+const router = useRouter();
 const loading = ref(false);
 const dialogVisible = ref(false);
 const selectedDefect = ref(null);
-
 const searchForm = reactive({ taskName: '', defectType: '', severity: '', currentStatus: '', discoveryDateRange: null });
 const tableData = ref([]);
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 });
@@ -146,31 +150,64 @@ const mockDataSource = [
 ];
 
 // --- 方法定义 ---
-const fetchData = () => {
+const fetchData = async () => {
   loading.value = true;
-  setTimeout(() => {
-    const filteredData = mockDataSource.filter(item => {
-      const discoveryDate = new Date(item.discoveryTime);
-      const range = searchForm.discoveryDateRange;
-      const isDateInRange = !range || (discoveryDate >= range[0] && discoveryDate <= range[1]);
+  if (USE_REAL_API) {
+    try {
+      const params = {
+        page: pagination.currentPage,
+        pageSize: pagination.pageSize,
+        ...searchForm
+      };
+      const response = await getDefects(params);
+      tableData.value = response.list;
+      pagination.total = response.total;
+    } catch(error) {
+      console.error("获取缺陷列表失败:", error);
+    } finally {
+      loading.value = false;
+    }
+  } else {
+      setTimeout(() => {
+        const filteredData = mockDataSource.filter(item => {
+          const discoveryDate = new Date(item.discoveryTime);
+          const range = searchForm.discoveryDateRange;
+          const isDateInRange = !range || (discoveryDate >= range[0] && discoveryDate <= range[1]);
 
-      return (
-          item.taskName.includes(searchForm.taskName) &&
-          item.defectType.includes(searchForm.defectType) &&
-          (!searchForm.severity || item.severity === searchForm.severity) &&
-          (!searchForm.currentStatus || item.currentStatus === searchForm.currentStatus) &&
-          isDateInRange
-      );
-    });
-    pagination.total = filteredData.length;
-    const start = (pagination.currentPage - 1) * pagination.pageSize;
-    const end = start + pagination.pageSize;
-    tableData.value = filteredData.slice(start, end);
-    loading.value = false;
-  }, 500);
-};
+          return (
+              item.taskName.includes(searchForm.taskName) &&
+              item.defectType.includes(searchForm.defectType) &&
+              (!searchForm.severity || item.severity === searchForm.severity) &&
+              (!searchForm.currentStatus || item.currentStatus === searchForm.currentStatus) &&
+              isDateInRange
+          );
+        });
+        pagination.total = filteredData.length;
+        const start = (pagination.currentPage - 1) * pagination.pageSize;
+        const end = start + pagination.pageSize;
+        tableData.value = filteredData.slice(start, end);
+        loading.value = false;
+      }, 500);
+}
+}
 
 onMounted(() => { fetchData(); });
+// 3. 新增：标记为已整改的方法
+const handleMarkAsRectified = async (row) => {
+  await ElMessageBox.confirm(`确定要将缺陷 "${row.defectId}" 标记为“已整改”吗？`, '提示', { type: 'warning' });
+  if (USE_REAL_API) {
+    try {
+      await updateDefectStatus(row.defectId, { status: '已整改' });
+      ElMessage.success('状态更新成功！');
+      fetchData(); // 刷新列表
+    } catch (error) { /* ... */ }
+  } else {
+    const item = mockDataSource.find(d => d.id === row.id);
+    if(item) item.currentStatus = '已整改';
+    ElMessage.success('状态更新成功（模拟）');
+    fetchData(); // 刷新列表
+  }
+}
 
 // 新增：跳转到任务管理页面的方法
 const goToTask = (row) => {

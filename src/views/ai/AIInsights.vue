@@ -11,7 +11,7 @@
 
     <div class="main-content">
       <div class="conversation-list">
-        <el-button type="primary" plain class="new-chat-btn">新建聊天</el-button>
+        <el-button type="primary" plain class="new-chat-btn" @click="handleNewConversation">新建聊天</el-button>
         <div
             v-for="convo in conversations"
             :key="convo.id"
@@ -27,22 +27,43 @@
         <div class="chat-history-container">
           <div v-for="(message, index) in activeConversation.messages" :key="index" :class="['chat-message', message.role]">
             <el-avatar :icon="message.role === 'user' ? User : 'Avatar'" class="chat-avatar" />
-            <div class="chat-bubble"><pre>{{ message.content }}</pre></div>
-          </div>
-          <div v-if="isLoading" class="chat-message model">
-            <el-avatar icon="Avatar" class="chat-avatar" />
-            <div class="chat-bubble loading-bubble">
-              <el-icon class="is-loading"><Loading /></el-icon>
-              <span>正在分析数据，请稍候...</span>
+            <div class="chat-bubble">
+              <div v-if="message.attachment" class="attachment-display">
+                <el-icon><Document /></el-icon>
+                <span>{{ message.attachment.name }}</span>
+              </div>
+              <pre>{{ message.content }}</pre>
             </div>
           </div>
         </div>
         <div class="chat-input-area">
-          <el-upload action="#" :show-file-list="false" class="upload-btn">
-            <el-icon><FolderOpened /></el-icon>
-          </el-upload>
-          <el-input v-model="userInput" type="textarea" :rows="1" resize="none" placeholder="请输入您的问题..." />
-          <el-button type="primary" :icon="Promotion">发送</el-button>
+          <div v-if="attachedFile" class="file-attachment-preview">
+            <el-icon><FolderChecked /></el-icon>
+            <span>{{ attachedFile.name }}</span>
+            <el-icon class="remove-icon" @click="removeAttachment"><Close /></el-icon>
+          </div>
+          <div class="input-actions">
+            <el-upload
+                action="#"
+                :show-file-list="false"
+                :before-upload="handleFileSelect"
+                class="upload-btn"
+            >
+              <el-icon title="上传文件"><FolderOpened /></el-icon>
+            </el-upload>
+            <div class="input-wrapper">
+              <el-input
+                  v-model="userInput"
+                  type="textarea"
+                  :rows="1"
+                  autosize
+                  resize="none"
+                  placeholder="请输入您的问题..."
+                  @keydown.enter.prevent="handleSendMessage"
+              />
+            </div>
+            <el-button type="primary" :icon="Promotion" @click="handleSendMessage">发送</el-button>
+          </div>
         </div>
       </div>
     </div>
@@ -65,99 +86,176 @@
     </el-dialog>
 
     <el-dialog v-model="cardDialog.visible" title="添加自定义分析卡片" width="500px">
+      <el-form :model="cardDialog.form" label-position="top">
+        <el-form-item label="卡片标题">
+          <el-input v-model="cardDialog.form.title" placeholder="例如：指定线路缺陷统计" />
+        </el-form-item>
+        <el-form-item label="描述或指令">
+          <el-input v-model="cardDialog.form.description" type="textarea" placeholder="描述这个卡片的功能或预设的指令" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="cardDialog.visible = false">取 消</el-button>
+          <el-button type="primary" @click="handleSaveCard">
+            保 存
+          </el-button>
+        </span>
+      </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick } from 'vue';
-import { User, Plus, FolderOpened, Promotion, Loading } from '@element-plus/icons-vue';
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ElMessage } from 'element-plus';
+import { User, Plus, FolderOpened, Promotion, Loading, Document, FolderChecked, Close } from '@element-plus/icons-vue';
+import { getTasks } from '@/api/tasks.js';
+import { getAnalysisTemplates, startStreamAnalysis } from '@/api/ai.js';
+
+const USE_REAL_API = false;
 
 const isLoading = ref(false);
 const userInput = ref('');
-
-const analysisTemplates = ref([
-  { id: 'defect_summary', title: '缺陷记录分析', description: '分析指定任务或时间范围内的缺陷...', required_params: ['task_ids', 'date_range'] },
-  { id: 'personnel_efficiency', title: '人员效率分析', description: '分析指定人员的任务完成频率...', required_params: ['user_ids', 'date_range'] }
-]);
-
+const attachedFile = ref(null);
+const analysisTemplates = ref([]);
 const conversations = ref([ { id: 'convo-1', title: '默认会话', messages: [ { role: 'model', content: '您好！我是您的AI数据洞察助手。' } ] } ]);
 const activeConversationId = ref('convo-1');
 const activeConversation = computed(() => conversations.value.find(c => c.id === activeConversationId.value));
-
 const cardDialog = reactive({ visible: false, form: { title: '', description: '' } });
-const mockTasks = ref([
-  { taskId: 'TASK-20250626-001', taskName: '1号线隧道巡检' },
-  { taskId: 'TASK-20250627-001', taskName: '2号线设备检查' },
-]);
+const mockTasks = ref([]);
+const parameterDialog = reactive({ visible: false, title: '', params: [], form: { taskIds: [], dateRange: [] }, analysisType: '' });
+let eventSource = null;
 
-// 恢复并重构参数配置弹窗的状态管理
-const parameterDialog = reactive({
-  visible: false,
-  title: '',
-  params: [],
-  form: { taskIds: [], dateRange: [] },
-  analysisType: ''
-});
+const fetchInitialData = async () => {
+  if (USE_REAL_API) {
+    try {
+      analysisTemplates.value = await getAnalysisTemplates();
+      const taskRes = await getTasks({ page: 1, pageSize: 100 });
+      mockTasks.value = taskRes.list;
+    } catch(e) { console.error(e); }
+  } else {
+    analysisTemplates.value = [
+      { id: 'defect_summary', title: '缺陷记录分析', description: '分析指定任务或时间范围内的缺陷...', required_params: ['task_ids', 'date_range'] },
+      { id: 'personnel_efficiency', title: '人员效率分析', description: '分析指定人员的任务完成频率...', required_params: ['user_ids', 'date_range'] }
+    ];
+    mockTasks.value = [ { taskId: 'TASK-20250626-001', taskName: '1号线隧道巡检' }, { taskId: 'TASK-20250627-001', taskName: '2号线设备检查' } ];
+  }
+};
 
-// --- 方法 ---
+onMounted(() => { fetchInitialData(); });
+onUnmounted(() => { if (eventSource) eventSource.close(); });
 
-// 关键改动：点击卡片，现在会打开配置弹窗
+const handleNewConversation = () => {
+  const newConvo = {
+    id: `convo-${Date.now()}`,
+    title: `新的聊天 ${conversations.value.length}`,
+    messages: [ { role: 'model', content: '您好！有什么可以帮助您的吗？' } ]
+  };
+  conversations.value.unshift(newConvo);
+  activeConversationId.value = newConvo.id;
+};
+
+const handleFileSelect = (rawFile) => {
+  attachedFile.value = rawFile;
+  return false;
+};
+
+const removeAttachment = () => {
+  attachedFile.value = null;
+};
+
 const handleCardClick = (card) => {
   parameterDialog.title = `配置分析 - ${card.title}`;
   parameterDialog.params = card.required_params;
   parameterDialog.analysisType = card.id;
-  // 重置表单
   parameterDialog.form.taskIds = [];
   parameterDialog.form.dateRange = [];
   parameterDialog.visible = true;
 };
 
-// 关键改动：提交弹窗中的参数后，开始分析流程
-const handleAnalysisSubmit = () => {
-  const cardTitle = analysisTemplates.value.find(c => c.id === parameterDialog.analysisType)?.title || '自定义分析';
+const handleSendMessage = () => {
+  if (!userInput.value.trim() && !attachedFile.value) {
+    return;
+  }
 
-  // 1. 创建新会话
-  const newConvo = {
-    id: `convo-${Date.now()}`,
-    title: cardTitle,
-    messages: []
+  const userMessage = {
+    role: 'user',
+    content: userInput.value,
+    attachment: attachedFile.value ? {
+      name: attachedFile.value.name,
+      size: attachedFile.value.size,
+      type: attachedFile.value.type,
+      file: attachedFile.value
+    } : null
   };
+  activeConversation.value.messages.push(userMessage);
+  userInput.value = '';
+  attachedFile.value = null;
 
-  // 2. 格式化用户的请求作为第一条消息
-  const userRequestContent = `请为我执行: "${cardTitle}"\n任务范围: ${parameterDialog.form.taskIds.join(', ') || '全部'}\n时间范围: ${parameterDialog.form.dateRange?.map(d => new Date(d).toLocaleDateString()).join(' 至 ') || '全部'}`;
-  newConvo.messages.push({ role: 'user', content: userRequestContent });
-
-  conversations.value.unshift(newConvo);
-  activeConversationId.value = newConvo.id;
-
-  // 3. 关闭弹窗并开始模拟流式响应
-  parameterDialog.visible = false;
-  simulateStreamingResponse(newConvo.id);
+  simulateStreamingResponse(activeConversationId.value);
 };
 
-// 模拟流式响应
-const simulateStreamingResponse = (convoId) => {
-  isLoading.value = true;
+const handleAnalysisSubmit = () => {
+  const cardTitle = analysisTemplates.value.find(c => c.id === parameterDialog.analysisType)?.title || '自定义分析';
+  const newConvo = { id: `convo-${Date.now()}`, title: cardTitle, messages: [] };
+  const userRequestContent = `请为我执行: "${cardTitle}"\n任务范围: ${parameterDialog.form.taskIds.join(', ') || '全部'}\n时间范围: ${parameterDialog.form.dateRange?.map(d => new Date(d).toLocaleDateString()).join(' 至 ') || '全部'}`;
+  newConvo.messages.push({ role: 'user', content: userRequestContent });
+  conversations.value.unshift(newConvo);
+  activeConversationId.value = newConvo.id;
+  parameterDialog.visible = false;
 
-  // 找到对应的会话
+  if (USE_REAL_API) {
+    const requestData = {
+      analysisType: parameterDialog.analysisType,
+      parameters: { ...parameterDialog.form }
+    };
+    streamResponseFromAPI(requestData, newConvo.id);
+  } else {
+    simulateStreamingResponse(newConvo.id);
+  }
+};
+
+const streamResponseFromAPI = (requestData, convoId) => {
+  isLoading.value = true;
   const currentConvo = conversations.value.find(c => c.id === convoId);
   if (!currentConvo) return;
+  currentConvo.messages.push({ role: 'model', content: '' });
 
+  eventSource = startStreamAnalysis(requestData);
+  eventSource.onmessage = (event) => {
+    if (index === 0) isLoading.value = false;
+    if (event.data === '[DONE]') {
+      eventSource.close();
+      return;
+    }
+    const lastMessage = currentConvo.messages[currentConvo.messages.length - 1];
+    lastMessage.content += event.data;
+  };
+  eventSource.onerror = (err) => {
+    console.error("EventSource failed:", err);
+    ElMessage.error("与AI服务器连接失败");
+    isLoading.value = false;
+    eventSource.close();
+  };
+};
+
+const simulateStreamingResponse = (convoId) => {
+  isLoading.value = true;
+  const currentConvo = conversations.value.find(c => c.id === convoId);
+  if (!currentConvo) return;
   currentConvo.messages.push({ role: 'model', content: '' });
 
   const mockResponse = "根据您的要求，对任务 [TASK-20250626-001] 的分析结果如下：\n\n1.  **主要缺陷类型**: \n    * 裂缝 (45%)\n    * 渗水 (30%)\n\n2.  **根本原因分析**: \n    * 结构性裂缝多与沉降有关。\n    * 渗水问题集中在接口处，建议加强防水工艺。\n\n3.  **改进建议**: \n    * 对K10-K15段进行重点沉降观测。";
   let index = 0;
 
   const intervalId = setInterval(() => {
-    if (index === 0) {
-      isLoading.value = false;
-    }
+    if (index === 0) isLoading.value = false;
     if (index < mockResponse.length) {
       const lastMessage = currentConvo.messages[currentConvo.messages.length - 1];
       lastMessage.content += mockResponse[index];
       index++;
-      nextTick(() => { /* ... 滚动到底部 ... */ });
+      nextTick(() => { /* scroll to bottom */ });
     } else {
       clearInterval(intervalId);
     }
@@ -178,7 +276,6 @@ const handleSaveCard = () => {
   });
   cardDialog.visible = false;
 };
-
 </script>
 
 <style scoped>
@@ -198,8 +295,45 @@ const handleSaveCard = () => {
 
 .chat-window { flex-grow: 1; display: flex; flex-direction: column; min-width: 0; }
 .chat-history-container { flex-grow: 1; overflow-y: auto; background-color: #f5f7fa; padding: 20px; border-radius: 4px; }
-.chat-input-area { display: flex; gap: 10px; align-items: center; padding-top: 15px; flex-shrink: 0; }
+
+/* ****** 修改开始 ****** */
+.chat-input-area {
+  display: flex;
+  flex-direction: column; /* 1. 改为垂直布局 */
+  gap: 10px; /* 增加元素间距 */
+  align-items: flex-start; /* 左对齐 */
+  padding-top: 15px;
+  flex-shrink: 0;
+}
+
+.input-actions {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end; /* 让按钮和输入框底部对齐 */
+  width: 100%; /* 占满父容器宽度 */
+}
+
+.input-wrapper {
+  flex-grow: 1; /* 2. 关键：让输入框包裹层占据所有剩余空间 */
+  min-width: 0; /* 在flex布局中防止子元素溢出 */
+}
+
+.file-attachment-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background-color: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 4px;
+  font-size: 13px;
+  /* `align-self: flex-start` 已被父元素的 `align-items` 替代 */
+}
+/* ****** 修改结束 ****** */
+
 .upload-btn .el-icon { font-size: 20px; color: #666; cursor: pointer; }
+.remove-icon { cursor: pointer; color: #999; }
+.remove-icon:hover { color: var(--el-color-primary); }
 
 /* 聊天气泡样式 */
 .chat-message { display: flex; gap: 12px; margin-bottom: 20px; }
@@ -209,4 +343,7 @@ const handleSaveCard = () => {
 .chat-message.user .chat-avatar { order: 2; }
 .chat-bubble { padding: 10px 15px; border-radius: 10px; background-color: #fff; max-width: 80%; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
 pre { margin: 0; font-family: inherit; }
+
+.attachment-display { display: flex; align-items: center; gap: 5px; background-color: rgba(0,0,0,0.05); padding: 5px 8px; border-radius: 4px; margin-bottom: 5px; }
+
 </style>

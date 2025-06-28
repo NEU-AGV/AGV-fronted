@@ -1,0 +1,54 @@
+1. 获取分析模板 (可选)
+功能: 动态获取顶部可点击的分析卡片列表。
+
+请求: GET /api/ai/analysis-templates
+
+响应:
+
+JSON
+
+[
+  {
+    "id": "defect_summary",
+    "title": "缺陷记录分析",
+    "description": "...",
+    "required_params": ["task_ids", "date_range"]
+  }
+]
+2. 执行分析并获取流式结果 (核心接口)
+功能: 接收前端的分析请求，与大语言模型交互后，通过SSE流式返回结果。
+
+请求:
+
+方法: POST
+
+路径: /api/ai/stream-analysis
+
+请求头 (Headers): Authorization: Bearer <token>
+
+请求体 (Body):
+
+JSON
+
+{
+  "analysisType": "defect_summary",
+  "parameters": {
+    "taskIds": ["TASK-20250626-001"],
+    "dateRange": ["2025-06-01T00:00:00.000Z", "2025-06-30T23:59:59.999Z"]
+  }
+}
+响应:
+
+Content-Type: text/event-stream
+
+Body: 一个由多个 data: 事件组成的流，最后由一个特殊标记结束。
+
+data: 根据您提供的数据，
+
+data: 分析结果如下：
+
+data: \n\n1. **主要问题**
+
+data: ...
+
+data: [DONE]

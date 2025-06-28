@@ -147,45 +147,29 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { User, Lock, Key, Message } from '@element-plus/icons-vue' // 引入新版Icon
-import { useAuthStore } from '@/stores/auth'
-// 3. 引入更新后的 API 函数
-import { login, getCaptcha, register, sendEmailCode, getUserInfo } from '@/api/user'
+import { ref, reactive, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import { User, Lock, Key, Message } from '@element-plus/icons-vue';
+import { useAuthStore } from '@/stores/auth';
+// 引入更新后的真实API函数
+import { login, getCaptcha, register, sendEmailCode, getUserInfo } from '@/api/user';
 
-const router = useRouter()
-const authStore = useAuthStore()
+const router = useRouter();
+const authStore = useAuthStore();
 
-// --- 响应式状态定义 ---
-const activeTab = ref('login')
-const loginLoading = ref(false)
-const registerLoading = ref(false)
-const rememberMe = ref(false)
-
-// 登录表单
-const loginForm = reactive({
-  username: '',
-  password: '',
-  captcha: '',
-  uuid: '', // 用于存储验证码的唯一标识
-})
-const captchaImage = ref('') // 存储验证码图片
-const loginFormRef = ref(null)
-
-// 注册表单
-const registerForm = reactive({
-  username: '',
-  email: '',
-  code: '',
-  password: '',
-  confirmPassword: ''
-})
-const codeTimer = ref(0)
-let timer = null
-const registerFormRef = ref(null)
-
+// --- 响应式状态定义 (保持不变) ---
+const activeTab = ref('login');
+const loginLoading = ref(false);
+const registerLoading = ref(false);
+const rememberMe = ref(false);
+const loginForm = reactive({ username: '', password: '', captcha: '', uuid: '' });
+const captchaImage = ref('');
+const loginFormRef = ref(null);
+const registerForm = reactive({ username: '', email: '', code: '', password: '', confirmPassword: '' });
+const codeTimer = ref(0);
+let timer = null;
+const registerFormRef = ref(null);
 
 // --- 验证规则 ---
 const loginRules = reactive({
@@ -225,35 +209,39 @@ const registerRules = reactive({
 // --- 方法 ---
 
 // 4. 获取并刷新图形验证码
+// 获取并刷新图形验证码 (调用真实API)
 const refreshCaptcha = async () => {
   try {
-    const data = await getCaptcha()
-    // 后端返回的数据通常包含 uuid 和 img (base64)
-    loginForm.uuid = data.uuid
-    captchaImage.value = data.img
+    const response = await getCaptcha(); // 调用真实API
+    loginForm.uuid = response.uuid;
+    captchaImage.value = response.img;
   } catch (error) {
-    ElMessage.error('验证码加载失败，请重试')
+    console.error("获取验证码失败:", error);
+    ElMessage.error('验证码加载失败，请刷新重试');
   }
-}
+};
 
-// 登录处理
+// 登录处理 (调用真实API)
 const handleLogin = async () => {
-  await loginFormRef.value.validate()
-  loginLoading.value = true
+  await loginFormRef.value.validate();
+  loginLoading.value = true;
   try {
-    const token = await login(loginForm)
-    authStore.setToken(token)
+    const response = await login(loginForm); // 调用真实登录API
+    authStore.setToken(response.token); // 将返回的token存入Pinia
 
     // 登录成功后获取用户信息
-    const userInfo = await getUserInfo()
-    authStore.setUserInfo(userInfo)
+    const userInfo = await getUserInfo();
+    authStore.setUserInfo(userInfo);
 
-    ElMessage.success('登录成功')
-    await router.push('/') // 跳转到首页
+    ElMessage.success('登录成功');
+    await router.push('/');
+  } catch (error) {
+    // 接口层的拦截器已经处理了错误消息，这里只需要刷新验证码
+    await refreshCaptcha();
   } finally {
-    loginLoading.value = false
+    loginLoading.value = false;
   }
-}
+};
 
 // 发送邮箱验证码
 const handleSendEmailCode = async () => {
@@ -279,20 +267,21 @@ const handleSendEmailCode = async () => {
   }
 }
 
-// 注册处理
+// 注册处理 (调用真实API)
 const handleRegister = async () => {
-  await registerFormRef.value.validate()
-  registerLoading.value = true
+  await registerFormRef.value.validate();
+  registerLoading.value = true;
   try {
-    await register(registerForm)
-    ElMessage.success('注册成功！已自动为您切换到登录面板。')
-    // 注册成功后，切换到登录并填充用户名
-    activeTab.value = 'login'
-    loginForm.username = registerForm.username
+    await register(registerForm); // 调用真实注册API
+    ElMessage.success('注册成功！已自动为您切换到登录面板。');
+    activeTab.value = 'login';
+    loginForm.username = registerForm.username;
+  } catch (error) {
+    // API层的拦截器已经处理了错误消息
   } finally {
-    registerLoading.value = false
+    registerLoading.value = false;
   }
-}
+};
 
 // 切换标签页时重置表单验证状态
 const handleTabClick = (tab) => {

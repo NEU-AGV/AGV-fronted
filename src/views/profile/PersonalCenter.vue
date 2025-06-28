@@ -90,70 +90,45 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { User, Phone, Message, OfficeBuilding, Postcard,Plus} from '@element-plus/icons-vue';
+import { User, Phone, Message, OfficeBuilding, Postcard, Plus } from '@element-plus/icons-vue';
+// 1. 引入新建的API
+import { getProfile, updateProfile, updatePassword, uploadAvatar } from '@/api/profile.js';
+
+// --- 开关：设置为 true 时将调用真实API，否则使用模拟数据 ---
+const USE_REAL_API = false;
 
 const activeTab = ref('info');
 const infoFormRef = ref(null);
 const pwdFormRef = ref(null);
-
-// --- 模拟数据 ---
-// 2. 新增头像上传相关的状态和方法
-const imageUrl = ref('')
-
-const handleAvatarSuccess = (response, uploadFile) => {
-  // 使用 URL.createObjectURL 在本地生成一个临时的图片地址用于预览
-  imageUrl.value = URL.createObjectURL(uploadFile.raw);
-  ElMessage.success('头像上传成功（模拟）');
-};
-
-const beforeAvatarUpload = (rawFile) => {
-  // 检查文件类型
-  if (rawFile.type !== 'image/jpeg' && rawFile.type !== 'image/png') {
-    ElMessage.error('头像图片只能是 JPG 或 PNG 格式!');
-    return false;
-  }
-  // 检查文件大小
-  if (rawFile.size / 1024 / 1024 > 2) {
-    ElMessage.error('头像图片大小不能超过 2MB!');
-    return false;
-  }
-  return true;
-};
-
-// 模拟从后端获取到的当前登录用户的信息（部分字段为空，待补全）
+const imageUrl = ref('');
 const userInfo = ref({});
-const mockDepartments = [
-  { deptId: 101, deptName: '研发部' },
-  { deptId: 102, deptName: '运维部' }
-];
-
-// 表单数据模型
-const infoForm = reactive({
-  realName: '',
-  phone: '',
-  email: '',
-  deptId: null,
-});
+const mockDepartments = [ { deptId: 101, deptName: '研发部' }, { deptId: 102, deptName: '运维部' }];
+const infoForm = reactive({ realName: '', phone: '', email: '', deptId: null });
 const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' });
 
-// --- 页面加载时，模拟获取用户信息并填充表单 ---
-onMounted(() => {
-  // 模拟API调用
-  const fetchedUserInfo = {
-    username: 'admin',
-    realName: '', // 真实姓名为空，待用户填写
-    phone: '',    // 手机号为空，待用户填写
-    email: 'admin@example.com', // 邮箱是注册时已有的
-    deptId: null, // 部门为空，待用户选择
-    departmentName: '',
-    avatarUrl: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-  };
-  userInfo.value = fetchedUserInfo;
-  // 将已有的信息填充到表单中
-  Object.assign(infoForm, fetchedUserInfo);
-  imageUrl.value = fetchedUserInfo.avatarUrl;
+// --- 页面加载逻辑 ---
+onMounted(async () => {
+  if (USE_REAL_API) {
+    try {
+      const response = await getProfile();
+      userInfo.value = response;
+      Object.assign(infoForm, response);
+      imageUrl.value = response.avatarUrl;
+    } catch (error) {
+      ElMessage.error('获取用户信息失败');
+    }
+  } else {
+    // 模拟数据逻辑
+    const fetchedUserInfo = {
+      username: 'admin', realName: '管理员', phone: '15888888888', email: 'admin@example.com',
+      deptId: 101, departmentName: '研发部',
+      avatarUrl: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
+    };
+    userInfo.value = fetchedUserInfo;
+    Object.assign(infoForm, fetchedUserInfo);
+    imageUrl.value = fetchedUserInfo.avatarUrl;
+  }
 });
-
 
 
 // 表单验证规则
@@ -178,31 +153,72 @@ const pwdFormRules = {
 };
 
 // --- 方法 ---
-const handleUpdateInfo = () => {
-  infoFormRef.value.validate(valid => {
-    if (valid) {
-      // 模拟将数据提交到后端...
-
-      // 成功后，更新左侧的显示信息
-      userInfo.value.realName = infoForm.realName;
-      userInfo.value.phone = infoForm.phone;
-      userInfo.value.email = infoForm.email;
-      userInfo.value.deptId = infoForm.deptId;
-      // 模拟根据ID找到部门名称
-      const dept = mockDepartments.find(d => d.deptId === infoForm.deptId);
-      if (dept) {
-        userInfo.value.departmentName = dept.deptName;
-      }
-
+// 2. 更新基本资料
+const handleUpdateInfo = async () => {
+  await infoFormRef.value.validate();
+  if (USE_REAL_API) {
+    try {
+      await updateProfile(infoForm);
       ElMessage.success('基本资料保存成功！');
-    }
-  });
+      onMounted(); // 成功后重新获取最新信息
+    } catch (error) { /* ElMessage is handled in interceptor */ }
+  } else {
+    userInfo.value.realName = infoForm.realName;
+    userInfo.value.phone = infoForm.phone;
+    userInfo.value.email = infoForm.email;
+    const dept = mockDepartments.find(d => d.deptId === infoForm.deptId);
+    if (dept) { userInfo.value.departmentName = dept.deptName; }
+    ElMessage.success('基本资料保存成功（模拟）');
+  }
 };
 
-const handleUpdatePwd = () => {
-  pwdFormRef.value.validate(valid => {
-    if (valid) ElMessage.success('密码修改成功（模拟）');
-  });
+// 3. 修改密码
+const handleUpdatePwd = async () => {
+  await pwdFormRef.value.validate();
+  if (USE_REAL_API) {
+    try {
+      await updatePassword({ oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword });
+      ElMessage.success('密码修改成功！');
+      pwdFormRef.value.resetFields();
+    } catch (error) { /* ElMessage is handled in interceptor */ }
+  } else {
+    ElMessage.success('密码修改成功（模拟）');
+    pwdFormRef.value.resetFields();
+  }
+};
+
+// 4. 头像上传
+const handleAvatarSuccess = async (response, uploadFile) => {
+  if (USE_REAL_API) {
+    // 在真实场景中，我们通常不需要 :on-success，而是使用 :http-request 自定义上传行为
+    // 这里我们简化一下，假设上传成功后后端返回了新的头像URL
+    // userInfo.value.avatarUrl = response.data.avatarUrl;
+    // imageUrl.value = response.data.avatarUrl;
+    // ElMessage.success('头像上传成功！');
+  } else {
+    imageUrl.value = URL.createObjectURL(uploadFile.raw);
+    ElMessage.success('头像上传成功（模拟）');
+  }
+};
+
+const beforeAvatarUpload = (rawFile) => {
+  const isJpgOrPng = rawFile.type === 'image/jpeg' || rawFile.type === 'image/png';
+  const isLt2M = rawFile.size / 1024 / 1024 < 2;
+  if (!isJpgOrPng) ElMessage.error('头像图片只能是 JPG 或 PNG 格式!');
+  if (!isLt2M) ElMessage.error('头像图片大小不能超过 2MB!');
+
+  // 在真实API模式下，可以在这里直接上传
+  if (USE_REAL_API && isJpgOrPng && isLt2M) {
+    const formData = new FormData();
+    formData.append('avatarfile', rawFile);
+    uploadAvatar(formData).then(res => {
+      imageUrl.value = res.data.avatarUrl; // 假设后端返回新头像地址
+      ElMessage.success("头像上传成功！");
+    });
+  }
+
+  // 返回 false 可以阻止 el-upload 的默认上传行为
+  return !USE_REAL_API && isJpgOrPng && isLt2M;
 };
 </script>
 

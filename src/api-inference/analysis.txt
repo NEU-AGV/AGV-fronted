@@ -1,0 +1,67 @@
+1. 获取视频流地址
+功能描述: 为前端播放器提供视频流的来源地址。
+
+请求: GET /api/stream/source
+
+响应 (成功 200 OK):
+
+JSON
+
+{
+  "url": "wss://your-server.com/webrtc-stream"
+}
+2. 实时缺陷推送 (WebSocket)
+功能描述: 后端AI模型发现缺陷后，通过此长连接实时将缺陷信息推送给前端。
+
+连接地址: ws://<服务器地址>/ws/cv-analysis
+
+后端推送消息格式:
+
+JSON
+
+{
+  "type": "NEW_DEFECT_DETECTED",
+  "payload": {
+    "imageId": "img-unique-id-123",
+    "imageUrl": "/media/defects/img-unique-id-123.jpg",
+    "timestamp": 1678886400,
+    "preliminary": {
+      "type": "裂缝",
+      "confidence": 0.92,
+      "location": "K10+500"
+    }
+  }
+}
+3. 提交新缺陷记录
+功能描述: 将用户在前端确认并填写的缺陷信息，创建为一条新的正式记录。
+
+请求: POST /api/defects
+
+请求体 (Body): 一个与缺陷管理系统数据结构完全一致的JSON对象。
+
+JSON
+
+{
+  "id": null,
+  "defectId": "DEF-2025-38725",
+  "taskId": "TASK-20250626-001",
+  "taskName": "1号线隧道巡检",
+  "defectType": "裂缝",
+  "description": "用户填写的详细描述",
+  "location": "K12+300",
+  "imageUrl": "/media/defects/img-unique-id-123.jpg",
+  "severity": "高",
+  "isVerified": false,
+  "currentStatus": "待确认",
+  "discoverer": "admin",
+  "discoveryTime": "2025/6/27 16:53:58",
+  "discoveryMethod": "智能识别"
+}
+说明：后端在保存时，应忽略 id, taskName 等冗余字段，并根据业务逻辑填充 confirmer, handler 等信息。
+
+4. 获取可选任务列表 (复用)
+功能描述: 为表单中的“关联任务”下拉框提供数据。
+
+请求: GET /api/tasks (复用任务管理模块的接口)
+
+Query参数: page=1&pageSize=100 (或不加分页，获取所有可选任务)

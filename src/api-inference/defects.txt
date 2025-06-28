@@ -1,0 +1,73 @@
+1. 获取缺陷列表 (分页+筛选)
+功能描述
+查询缺陷管理页面的表格数据，支持分页和多条件筛选。
+
+请求
+
+方法: GET
+
+路径: /api/defects
+
+请求头 (Headers): Authorization: Bearer <token>
+
+Query 参数:
+| 参数名 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| page | number | 当前页码 |
+| pageSize | number | 每页条数 |
+| taskName | string | 按关联任务名称（模糊匹配）筛选 |
+| defectType | string | 按缺陷类型（模糊匹配）筛选 |
+| severity | string | 按严重程度筛选，例如 高 |
+| currentStatus | string | 按当前状态筛选，例如 处理中 |
+| discovery_start| string | 按发现时间的开始日期筛选 |
+| discovery_end | string | 按发现时间的结束日期筛选 |
+
+响应 (成功 200 OK)
+
+JSON
+
+{
+  "total": 4,
+  "list": [
+    {
+      "id": 1,
+      "defectId": "DEF-2024-001",
+      "taskId": "TASK-20250626-001",
+      "taskName": "1号线隧道巡检",
+      "defectType": "裂缝",
+      "description": "隧道壁K125+600处发现横向裂缝，长约2.5米。",
+      "imageUrl": "...",
+      "severity": "中",
+      "isVerified": true,
+      "currentStatus": "已整改",
+      "discoverer": "李四",
+      "discoveryTime": "2025-06-26 10:30",
+      "handler": "维修一队",
+      /* ... 其他所有在详情中展示的字段 ... */
+    }
+  ]
+}
+2. 更新缺陷状态
+功能描述
+修改指定ID的缺陷的状态，例如“标记整改”、“确认缺陷”等。
+
+请求
+
+方法: PUT
+
+路径: /api/defects/{id}/status (例如: /api/defects/1/status)
+
+请求头 (Headers): Authorization: Bearer <token>
+
+Content-Type: application/json
+
+Body:
+
+JSON
+
+{
+  "status": "已整改"
+}
+响应 (成功 200 OK)
+
+返回成功的消息提示。

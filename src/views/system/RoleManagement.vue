@@ -70,13 +70,14 @@
 import { ref, reactive, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Refresh, Plus, EditPen, Delete, Check } from '@element-plus/icons-vue';
+import { getRoles, addRole, updateRole, deleteRole, updateRolePermissions } from '@/api/system.js';
 
-// --- 状态与数据 ---
+const USE_REAL_API = false;
+
 const loading = ref(false);
 const searchForm = reactive({ roleName: '', roleCode: '' });
 const tableData = ref([]);
 
-// 角色表单弹窗
 const roleFormRef = ref(null);
 const dialog = reactive({ visible: false, title: '' });
 const roleForm = reactive({ roleId: null, roleName: '', roleCode: '', status: '启用', description: '' });
@@ -101,10 +102,22 @@ const mockRoleDataSource = [
   { roleId: 2, roleName: '巡检管理员', roleCode: 'inspector', status: '启用', createTime: '2024-01-01 10:00:00', isSystem: false, permissionIds: ['task'], dataScope: '本部门' },
 ];
 
-// --- 方法 ---
-onMounted(() => {
-  tableData.value = mockRoleDataSource;
-});
+const fetchRoles = async () => {
+  loading.value = true;
+  if (USE_REAL_API) {
+    try {
+      const res = await getRoles(searchForm);
+      tableData.value = res;
+    } catch (error) { console.error(error); } finally { loading.value = false; }
+  } else {
+    tableData.value = mockRoleDataSource.filter(item =>
+        item.roleName.includes(searchForm.roleName) && item.roleCode.includes(searchForm.roleCode)
+    );
+    loading.value = false;
+  }
+};
+
+onMounted(() => { fetchRoles(); });
 
 const handleAdd = () => {
   // 重置表单
@@ -120,18 +133,37 @@ const handleEdit = (row) => {
   nextTick(() => Object.assign(roleForm, row));
 };
 
-const handleSubmit = () => {
-  roleFormRef.value.validate(valid => {
-    if (valid) {
-      ElMessage.success('保存成功（模拟）');
+const handleSubmit = async () => {
+  await roleFormRef.value.validate();
+  if (USE_REAL_API) {
+    try {
+      if (roleForm.roleId) {
+        await updateRole(roleForm.roleId, roleForm);
+        ElMessage.success('修改成功！');
+      } else {
+        await addRole(roleForm);
+        ElMessage.success('新增成功！');
+      }
       dialog.visible = false;
-    }
-  });
+      fetchRoles();
+    } catch(error) { /* ... */ }
+  } else {
+    ElMessage.success('保存成功（模拟）');
+    dialog.visible = false;
+  }
 };
 
-const handleDelete = (row) => {
-  ElMessageBox.confirm(`确定删除角色 "${row.roleName}"?`, '提示', { type: 'warning' })
-      .then(() => ElMessage.success('删除成功（模拟）'));
+const handleDelete = async (row) => {
+  await ElMessageBox.confirm(`确定删除角色 "${row.roleName}"?`, '提示', { type: 'warning' });
+  if (USE_REAL_API) {
+    try {
+      await deleteRole(row.roleId);
+      ElMessage.success('删除成功！');
+      fetchRoles();
+    } catch(error) { /* ... */ }
+  } else {
+    ElMessage.success('删除成功（模拟）');
+  }
 };
 
 const handlePermission = (row) => {
@@ -144,15 +176,21 @@ const handlePermission = (row) => {
   });
 };
 
-const handlePermissionSubmit = () => {
-  const checkedKeys = permissionTreeRef.value.getCheckedKeys(false); // false表示不包含半选的父节点
-  const halfCheckedKeys = permissionTreeRef.value.getHalfCheckedKeys();
-  const allKeys = [...checkedKeys, ...halfCheckedKeys];
-
-  console.log('分配的功能权限ID:', allKeys);
-  console.log('分配的数据权限:', permissionDialog.dataScope);
-  ElMessage.success('权限分配成功（模拟）');
-  permissionDialog.visible = false;
+const handlePermissionSubmit = async () => {
+  const allKeys = permissionTreeRef.value.getCheckedKeys(false).concat(permissionTreeRef.value.getHalfCheckedKeys());
+  if (USE_REAL_API) {
+    try {
+      const data = { menuIds: allKeys, dataScope: permissionDialog.dataScope };
+      await updateRolePermissions(permissionDialog.roleId, data);
+      ElMessage.success('权限分配成功！');
+      permissionDialog.visible = false;
+    } catch(error) { /* ... */ }
+  } else {
+    console.log('分配的功能权限ID:', allKeys);
+    console.log('分配的数据权限:', permissionDialog.dataScope);
+    ElMessage.success('权限分配成功（模拟）');
+    permissionDialog.visible = false;
+  }
 };
 </script>
 
