@@ -483,7 +483,7 @@ $title-color: $primary-color;
   width: 100%;
   height: 100%;
   z-index: 0;
-  background-image: url('@/assets/images/login-bg.png');
+  background-image: url('@/assets/login-bg.png');
   background-size: cover;
   background-position: center;
   opacity: 0.3; /* 背景图透明度，不影响登录框可读性 */
