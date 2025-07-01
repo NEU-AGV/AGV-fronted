@@ -1,5 +1,6 @@
 <template>
   <div>
+    <div class="defect-management-container"></div>
     <div class="content-pane">
       <el-form :model="searchForm" inline class="search-form">
         <el-form-item label="用户名">
@@ -9,20 +10,20 @@
           <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="用户状态" clearable style="width: 100px;">
+          <el-select v-model="searchForm.status" placeholder="用户状态" clearable style="width: 100px;"popper-class="theme-tunnel-popper">
             <el-option label="正常" value="正常" />
             <el-option label="禁用" value="禁用" />
           </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="fetchUsers">搜索</el-button>
-          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+          <el-button type="primary" :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
 
       <div class="toolbar">
         <el-button type="primary" :icon="Plus" @click="handleAdd">新增用户</el-button>
-        <el-button type="danger" :icon="Delete" @click="handleDeleteMulti" :disabled="selectedUsers.length === 0">批量删除</el-button>
+        <el-button type="dangermax" :icon="Delete" @click="handleDeleteMulti" :disabled="selectedUsers.length === 0">批量删除</el-button>
       </div>
 
       <el-table :data="userTableData" border stripe v-loading="loading" style="width: 100%" @selection-change="handleSelectionChange">
@@ -48,7 +49,7 @@
         <el-table-column prop="createTime" label="创建时间" width="160" />
         <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button link type="primary" :icon="EditPen" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="blue" :icon="EditPen" @click="handleEdit(row)">编辑</el-button>
             <el-button link type="danger" :icon="Delete" @click="handleDelete(row)" :disabled="row.username === 'admin'">删除</el-button>
             <el-button link type="info" :icon="Key" @click="handleResetPwd(row)">重置密码</el-button>
             <el-button link type="warning" :icon="View" @click="handleViewLog(row)">登录日志</el-button>
@@ -59,12 +60,9 @@
       <el-pagination
           class="pagination-container"
           :current-page="pagination.currentPage"
-          :page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="pagination.total"
-          @size-change="handleSizeChange"
+          :page-size="10" layout="total, prev, pager, next, jumper" :total="pagination.total"
           @current-change="handleCurrentChange"
+          :popper-class="'theme-tunnel-popper'"
       />
     </div>
 
@@ -107,7 +105,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取 消</el-button>
+        <el-button type="primary" @click="dialog.visible = false">取 消</el-button>
         <el-button type="primary" @click="handleSubmit">确 定</el-button>
       </template>
     </el-dialog>
@@ -276,5 +274,470 @@ const handleCurrentChange = (val) => { pagination.currentPage = val; fetchUsers(
 </script>
 
 <style scoped>
-.content-pane{padding:20px;box-sizing:border-box}.search-form{background-color:#f5f7fa;padding:20px 20px 0;border-radius:4px;margin-bottom:20px}.toolbar{margin-bottom:15px}.pagination-container{margin-top:20px;display:flex;justify-content:flex-end}
+/* 主要内容区域样式 - 设置深色背景、白色文字、内边距和布局 */
+.content-pane{
+  background-color: #0f1419;  /* 深色背景 */
+  color: #fff;  /* 白色文字 */
+  padding: 20px;  /* 内边距 */
+  height: 100%;  /* 高度100% */
+  display: flex;  /* 弹性布局 */
+  flex-direction: column;  /* 垂直排列 */
+  gap: 20px;  /* 子元素间距 */
+  min-height: calc(100vh - 30px);  /* 最小高度为视口高度减30px */
+}
+
+/* 搜索表单样式 */
+.search-form{
+  background-color:#0f1419;  /* 背景色 */
+  padding:20px 20px 0;  /* 内边距 */
+  border-radius:4px;  /* 圆角 */
+  margin-bottom:20px  /* 底部外边距 */
+}
+
+/* 工具栏样式 */
+.toolbar{margin-bottom:15px}  /* 底部外边距 */
+
+/* 分页容器样式 */
+.pagination-container{
+  margin-top:20px;  /* 顶部外边距 */
+  display:flex;  /* 弹性布局 */
+  justify-content:flex-end  /* 右对齐 */
+}
+
+/* 搜索表单、表格和分页组件的统一样式 */
+.search-form,
+.el-table,
+.el-pagination {
+  background: rgba(0, 212, 255, 0.1);  /* 半透明蓝色背景 */
+  border: 1px solid rgba(0, 212, 255, 0.3);  /* 蓝色边框 */
+  padding: 15px;  /* 内边距 */
+  border-radius: 4px;  /* 圆角 */
+}
+
+/* --- 弹窗整体样式优化 --- */
+:deep(.el-dialog) {
+  background-color: #0f1419 !important; /* 使用页面主背景色 */
+  border: 1px solid rgba(0, 212, 255, 0.3) !important; /* 使用主题边框色 */
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1) !important;
+}
+
+:deep(.el-dialog__header) {
+  background-color: rgba(0, 30, 40, 0.7) !important; /* 稍深的背景色 */
+  border-bottom: 1px solid rgba(0, 212, 255, 0.2) !important;
+  padding: 15px 20px;
+}
+
+:deep(.el-dialog__title) {
+  color: #c1f0ff !important; /* 使用主题文字颜色 */
+  font-weight: 500;
+}
+
+:deep(.el-dialog__body) {
+  background-color: rgba(0, 212, 255, 0.05) !important; /* 轻微的主题色背景 */
+  padding: 20px;
+}
+
+:deep(.el-dialog__footer) {
+  background-color: rgba(0, 30, 40, 0.7) !important;
+  border-top: 1px solid rgba(0, 212, 255, 0.2) !important;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+
+
+
+/* 表单标签和表格表头样式 */
+::v-deep .el-form-item__label {
+  color: #00d4ff !important;  /* 蓝色文字 */
+}
+::v-deep .el-table__header th {
+  color: #00d4ff !important;  /* 蓝色文字 */
+}
+
+/* 表格单元格文字颜色 */
+::v-deep .el-table__body td {
+  color: #ccc !important;  /* 浅灰色文字 */
+}
+
+/* 主要按钮样式 */
+::v-deep .el-button--primary {
+  background-color: #00d4ff;  /* 蓝色背景 */
+  border: none;  /* 无边框 */
+  color: #0f1419;  /* 深色文字 */
+  border-radius: 20px;  /* 圆形按钮 */
+  padding: 8px 20px;  /* 内边距 */
+  transition: all 0.3s ease;  /* 过渡动画 */
+}
+::v-deep .el-button--primary:hover {
+  background-color: #33e0ff;  /* 悬停时更亮的蓝色 */
+}
+
+::v-deep .el-button--dangermax {
+  background-color: #f56c6c;  /* 蓝色背景 */
+  border: none;  /* 无边框 */
+  color: #fff;  ;  /* 深色文字 */
+  border-radius: 20px;  /* 圆形按钮 */
+  padding: 8px 20px;  /* 内边距 */
+  transition: all 0.3s ease;  /* 过渡动画 */
+}
+::v-deep .el-button--dangermax:hover {
+  background-color: #f78989;  /* 悬停时更亮的蓝色 */
+}
+
+/* 按钮样式 */
+::v-deep .el-button--blue {
+  color: #fff;  /* 白色文字 */
+}
+
+/* 按钮样式 */
+::v-deep .el-button--info {
+  color: #fff;  /* 白色文字 */
+}
+
+/* 按钮图标样式 */
+::v-deep .el-button .el-icon {
+  margin-right: 6px;  /* 图标右边距 */
+}
+
+
+/* 页面底部装饰元素 - 地铁巡线车动画 */
+.defect-management-container::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  height: 80px;
+  /* SVG背景图，包含轨道、列车和信号灯 */
+  background: url("data:image/svg+xml,...");
+  background-size: 1200px 80px;
+  z-index: 0;
+  opacity: 0.8;
+}
+
+/* 地铁动画关键帧 */
+@keyframes trainMove {
+  0% { background-position: 0 0; }
+  100% { background-position: -1200px 0; }
+}
+
+/* 应用地铁动画 */
+.defect-management-container::before {
+  animation: trainMove 30s linear infinite;
+}
+
+/* 表格样式优化 */
+:deep(.el-table) {
+  --el-table-text-color: #c1f0ff;
+  --el-table-header-text-color: #00d4ff;
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.1);
+  --el-table-border-color: rgba(0, 212, 255, 0.3);
+  --el-table-bg-color: rgba(0, 30, 40, 0.7);
+}
+
+:deep(.el-table th) {
+  background-color: rgba(0, 50, 60, 0.7);
+  font-weight: 600;
+}
+
+:deep(.el-table tr) {
+  background-color: var(--el-table-bg-color);
+}
+
+:deep(.el-table td) {
+  background-color: var(--el-table-bg-color);
+  border-bottom-color: rgba(0, 212, 255, 0.2);
+}
+
+:deep(.el-table .cell) {
+  line-height: 1.6;
+}
+/* 表格样式优化 - 完全覆盖斑马纹 */
+:deep(.el-table) {
+  --el-table-tr-bg-color: transparent; /* 覆盖斑马纹背景色 */
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.1);
+}
+
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped) {
+  background: transparent !important; /* 完全禁用斑马纹 */
+}
+
+:deep(.el-table th),
+:deep(.el-table tr),
+:deep(.el-table td) {
+  background-color: rgba(0, 30, 40, 0.7) !important; /* 统一背景色 */
+  border-bottom-color: rgba(0, 212, 255, 0.3) !important;
+}
+
+/* 表格样式优化 */
+:deep(.el-table) {
+  --el-table-text-color: #c1f0ff;
+  --el-table-header-text-color: #00d4ff;
+  --el-table-row-hover-bg-color: rgba(0, 232, 255, 0.15); /* 悬停颜色变亮 */
+  --el-table-border-color: rgba(0, 212, 255, 0.3);
+  --el-table-bg-color: rgba(0, 30, 40, 0.7);
+}
+
+/* 行悬停效果增强 */
+:deep(.el-table__body tr:hover>td) {
+  background-color: rgba(0, 232, 255, 0.15) !important; /* 使用更亮的蓝色 */
+  box-shadow: inset 0 0 10px rgba(0, 212, 255, 0.2); /* 添加内发光效果 */
+}
+
+/* 操作按钮悬停效果 */
+:deep(.el-table .action-btn:hover) {
+  color: #ff7d7d !important; /* 更亮的红色 */
+  background-color: rgba(245, 108, 108, 0.15) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(245, 108, 108, 0.2);
+}
+
+/* 链接悬停效果 */
+:deep(.el-link:hover) {
+  --el-link-hover-text-color: #55f0ff !important; /* 更亮的蓝绿色 */
+  text-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
+}
+
+/* 操作按钮统一样式 */
+:deep(.el-table .action-btn) {
+  color: #f56c6c;
+  padding: 0 8px;
+  height: 24px;
+  line-height: 24px;
+  transition: all 0.3s;
+}
+
+:deep(.el-table .action-btn:hover) {
+  color: #f78989;
+  background-color: rgba(245, 108, 108, 0.1);
+  transform: translateY(-1px);
+}
+
+:deep(.el-table .action-btn:active) {
+  transform: translateY(0);
+}
+
+/* 链接样式 */
+:deep(.el-link) {
+  --el-link-text-color: #00e5ff;
+  --el-link-hover-text-color: #33eeff;
+}
+
+/* 分页控件样式 */
+.pagination-card .pagination-container {
+  margin-top: 0;
+  justify-content: flex-end;
+}
+
+.pagination-card .el-pagination {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.pagination-card .el-pagination.is-background .el-pager li {
+  background-color: transparent;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #fff;
+  margin: 0 5px;
+  border-radius: 4px;
+}
+
+.pagination-card .el-pagination.is-background .el-pager li.active {
+  background-color: #00d4ff;
+  color: #0f1419;
+  border-color: #00d4ff;
+}
+
+.pagination-card .el-pagination .btn-next, 
+.pagination-card .el-pagination .btn-prev {
+  background-color: transparent;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #fff;
+  border-radius: 4px;
+}
+
+.pagination-card .el-pagination .btn-next:hover, 
+.pagination-card .el-pagination .btn-prev:hover {
+  background-color: rgba(0, 212, 255, 0.2);
+}
+
+.pagination-card .el-pagination__total {
+  color: #ccc;
+  margin-right: 10px;
+}
+
+/* 行高亮效果 */
+:deep(.highlighted-row) {
+  background-color: rgba(253, 246, 236, 0.1);
+}
+
+:deep(.highlighted-row:hover > td) {
+  background-color: rgba(253, 246, 236, 0.2);
+}
+
+
+/* --- 1. 美化搜索区域的输入框和选择框 --- */
+:deep(.search-form .el-input__wrapper),
+:deep(.search-form .el-date-editor .el-range-input),
+:deep(.search-form .el-select__wrapper) {
+  background-color: #0f1419 !important; /* 设置为页面的主背景色 */
+  box-shadow: none !important; /* 移除 Element Plus 自带的阴影 */
+  border: 1px solid rgba(0, 212, 255, 0.3) !important; /* 使用主题边框色 */
+  color: #c1f0ff; /* 设置输入文字的颜色 */
+}
+
+/* 修复日期选择器在深色背景下的文字颜色 */
+:deep(.search-form .el-range-input) {
+  color: #c1f0ff !important;
+}
+
+/* 修复下拉框箭头的颜色 */
+:deep(.search-form .el-select .el-select__caret) {
+  color: #00d4ff;
+}
+
+
+/* --- 2. 美化分页组件 --- */
+.pagination-container {
+  /* 确保分页组件的背景透明，以显示父容器的颜色 */
+  background-color: transparent !important;
+  padding: 10px 5px;
+  border-radius: 4px;
+}
+
+:deep(.el-pagination) {
+  /* 设置分页组件的整体文字颜色 */
+  --el-pagination-text-color: #c1f0ff;
+  /* 设置按钮的颜色 */
+  --el-pagination-button-color: #c1f0ff;
+  /* 设置禁用状态下按钮的背景色 */
+  --el-pagination-button-disabled-bg-color: rgba(0, 212, 255, 0.1);
+  /* 设置按钮的背景色 */
+  --el-pagination-bg-color: transparent;
+}
+
+/* 页码按钮样式 */
+:deep(.el-pager li) {
+  background-color: rgba(0, 212, 255, 0.1) !important;
+  color: #c1f0ff !important;
+  border-radius: 4px;
+  margin: 0 4px;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+}
+
+/* 当前激活的页码按钮 */
+:deep(.el-pager li.is-active) {
+  background-color: #00d4ff !important;
+  color: #0f1419 !important; /* 深色文字以形成对比 */
+  font-weight: bold;
+  border-color: #00d4ff;
+}
+
+/* 页码按钮悬停效果 */
+:deep(.el-pager li:hover) {
+  color: #33e0ff !important;
+  border-color: #33e0ff;
+}
+
+/* "上一页" 和 "下一页" 按钮的样式 */
+:deep(.el-pagination .btn-prev),
+:deep(.el-pagination .btn-next) {
+  background-color: rgba(0, 212, 255, 0.1) !important;
+  border-radius: 4px;
+}
+
+/* "跳转到" 输入框的样式 */
+:deep(.el-pagination__jump .el-input__wrapper) {
+  background-color: #0f1419 !important;
+  border: 1px solid rgba(0, 212, 255, 0.3) !important;
+  box-shadow: none !important;
+}
+
+:deep(.el-pagination__jump .el-input__inner) {
+  color: #c1f0ff !important;
+}
+
+/* --- 1. 修改分页栏 “条/页” 选择框的背景色 --- */
+:deep(.el-pagination__sizes .el-input__wrapper) {
+  background-color: #0f1419 !important; /* 使用您现有的深色背景 */
+  box-shadow: none !important;
+}
+</style>
+
+<style lang="scss">
+/*
+  这个 style 块是全局的，没有 "scoped" 属性。
+  这是因为 Element Plus 的弹出框（如日期选择、下拉菜单）是直接挂载在 <body> 下的，
+  而不是在我们的组件内部，所以需要用全局样式来覆盖。
+  我们通过 .theme-tunnel-popper 这个自定义类名来确保只影响我们想要的弹出框。
+*/
+
+/* 基础面板样式 - 针对所有我们自定义的弹出框 */
+.el-popper.theme-tunnel-popper {
+  background: #1b2735 !important;
+  border: 1px solid rgba(0, 229, 255, 0.3) !important;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+
+  /* 弹出框的小箭头 */
+  .el-popper__arrow::before {
+    background: #1b2735 !important;
+    border-color: rgba(0, 229, 255, 0.3) !important;
+  }
+}
+
+/* (1) 下拉选择菜单 (el-select) 的样式 */
+.theme-tunnel-popper.el-select-dropdown {
+  .el-select-dropdown__item.is-selected {
+    color: #00e5ff !important;
+    font-weight: bold;
+  }
+  .el-select-dropdown__item.hover,
+  .el-select-dropdown__item:hover {
+    background-color: rgba(0, 229, 255, 0.2);
+  }
+  .el-select-dropdown__item {
+    color: #e0e0e0;
+  }
+}
+
+
+/* --- 弹窗整体样式优化 --- */
+:deep(.el-dialog) {
+  background-color: #0f1419 !important; /* 使用页面主背景色 */
+  border: 1px solid rgba(0, 212, 255, 0.3) !important; /* 使用主题边框色 */
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1) !important;
+}
+
+:deep(.el-dialog__header) {
+  background-color: rgba(0, 30, 40, 0.7) !important; /* 稍深的背景色 */
+  border-bottom: 1px solid rgba(0, 212, 255, 0.2) !important;
+  padding: 15px 20px;
+}
+
+:deep(.el-dialog__title) {
+  color: #c1f0ff !important; /* 使用主题文字颜色 */
+  font-weight: 500;
+}
+
+:deep(.el-dialog__body) {
+  background-color: rgba(0, 212, 255, 0.05) !important; /* 轻微的主题色背景 */
+  padding: 20px;
+}
+
+:deep(.el-dialog__footer) {
+  background-color: rgba(0, 30, 40, 0.7) !important;
+  border-top: 1px solid rgba(0, 212, 255, 0.2) !important;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 </style>
