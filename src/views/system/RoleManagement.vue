@@ -30,7 +30,15 @@
       </el-table-column>
     </el-table>
 
-    <el-pagination class="pagination-container" layout="total, sizes, prev, pager, next, jumper" :total="2" />
+    <!-- 在 el-pagination 标签中修改 layout 属性 -->
+ <el-pagination 
+  class="pagination-container"
+  layout="total, prev, pager, next, jumper"
+  :total="total" 
+  :page-size="pageSize" 
+  :current-page="currentPage"
+  @current-change="handleCurrentChange"
+/>
   </div>
 
   <el-dialog v-model="dialog.visible" :title="dialog.title" width="500px">
@@ -103,17 +111,35 @@ const mockRoleDataSource = [
   { roleId: 2, roleName: '巡检管理员', roleCode: 'inspector', status: '启用', createTime: '2024-01-01 10:00:00', isSystem: false, permissionIds: ['task'], dataScope: '本部门' },
 ];
 
+const currentPage = ref(1); // 当前页码
+const pageSize = ref(10);   // 每页显示条数
+const total = ref(2);       // 总数据量（示例值，需根据实际API返回调整）
+
+// 重新获取数据时传入分页参数
 const fetchRoles = async () => {
   loading.value = true;
   if (USE_REAL_API) {
     try {
-      const res = await getRoles(searchForm);
-      tableData.value = res;
+      // 假设API支持分页参数，需根据实际接口调整
+      const res = await getRoles({
+        ...searchForm,
+        pageNum: currentPage.value,
+        pageSize: pageSize.value
+      });
+      tableData.value = res.records || [];
+      total.value = res.total || 0;
     } catch (error) { console.error(error); } finally { loading.value = false; }
   } else {
-    tableData.value = mockRoleDataSource.filter(item =>
-        item.roleName.includes(searchForm.roleName) && item.roleCode.includes(searchForm.roleCode)
-    );
+    // 模拟数据过滤和分页
+    const startIdx = (currentPage.value - 1) * pageSize.value;
+    const endIdx = startIdx + pageSize.value;
+    tableData.value = mockRoleDataSource
+      .filter(item => 
+        item.roleName.includes(searchForm.roleName) && 
+        item.roleCode.includes(searchForm.roleCode)
+      )
+      .slice(startIdx, endIdx);
+    total.value = mockRoleDataSource.length;
     loading.value = false;
   }
 };
@@ -193,6 +219,7 @@ const handlePermissionSubmit = async () => {
     permissionDialog.visible = false;
   }
 };
+
 </script>
 
 <style scoped>
@@ -215,6 +242,13 @@ const handlePermissionSubmit = async () => {
   border: 1px solid rgba(0, 212, 255, 0.3);
   padding: 15px;
   border-radius: 4px;
+}
+
+/* 分页容器样式 */
+.pagination-container{
+  margin-top:20px;  /* 顶部外边距 */
+  display:flex;  /* 弹性布局 */
+  justify-content:flex-end  /* 右对齐 */
 }
 
 /* --- 弹窗整体样式优化 --- */
