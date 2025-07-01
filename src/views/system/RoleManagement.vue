@@ -52,25 +52,30 @@
   </el-dialog>
 
   <el-dialog v-model="permissionDialog.visible" title="权限分配" width="500px">
-    <el-form label-width="80px">
+    <el-form label-width="80px" class="permission-form">
       <el-form-item label="功能权限">
+        <div class="form-control flex-container">
         <el-tree
             ref="permissionTreeRef"
             :data="mockPermissionTreeData"
             show-checkbox
             node-key="id"
             :props="{ label: 'label', children: 'children' }"
+            class="tree-component"
         />
+        </div>
       </el-form-item>
       <el-form-item label="数据权限">
-        <el-select v-model="permissionDialog.dataScope" placeholder="请选择数据权限范围">
+        <div class="form-control flex-container">
+        <el-select v-model="permissionDialog.dataScope" placeholder="请选择数据权限范围" class="select-component">
           <el-option label="全部数据" value="全部" />
           <el-option label="本部门数据" value="本部门" />
           <el-option label="仅本人数据" value="仅本人" />
         </el-select>
+        </div>  
       </el-form-item>
     </el-form>
-    <template #footer><el-button @click="permissionDialog.visible = false">取 消</el-button><el-button type="primary" @click="handlePermissionSubmit">确 定</el-button></template>
+    <template #footer><el-button type="primary" @click="permissionDialog.visible = false">取 消</el-button><el-button type="primary" @click="handlePermissionSubmit">确 定</el-button></template>
   </el-dialog>
   </div>
 </template>
@@ -295,6 +300,22 @@ const handlePermissionSubmit = async () => {
 /* 黄框：表格单元格内容 颜色*/
 ::v-deep .el-table__body td {
   color: #ccc !important; 
+}
+
+/* 新增样式，放置在原有样式文件中 */
+
+/* 1. 强制统一宽度并提升优先级 */
+:deep(.tree-component),
+:deep(.select-component) {
+  width: 100% !important; /* 强制100%宽度 */
+  box-sizing: border-box;
+}
+
+/* 2. 父容器Flex布局确保等宽 */
+:deep(.flex-container) {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 

@@ -256,7 +256,20 @@ const handleSubmit = async () => {
   background-color: #33e0ff; 
 }
 
+::v-deep .el-tag {
+  /* 背景透明且带模糊，模拟玻璃质感 */
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px); /* 兼容 Safari */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* 浅色边框增强效果 */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* 阴影增加层次感 */
+  color: #37c271; /* 文字颜色 */
+}
 
+/* 针对 success 类型（正常状态）的 tag 可单独微调，比如加深边框等，也可省略 */
+::v-deep .el-tag--success {
+  border-color: rgba(103, 194, 58, 0.4); 
+}
 
 
 /* 主要按钮样式 */
