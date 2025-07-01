@@ -1,6 +1,11 @@
 <template>
-  <FullCalendar :options="calendarOptions" />
+  <div class="calendar-container">
+    <div class="glass-card">
+      <FullCalendar :options="calendarOptions" />
+    </div>
+  </div>
 </template>
+
 
 <script setup>
 import { reactive, onMounted } from 'vue';
@@ -23,8 +28,18 @@ const mockDataSource = [
 ];
 
 const getStatusColor = (status) => {
-  switch (status) { case '已完成': return '#67c23a'; case '进行中': return '#409eff'; case '待执行': return '#909399'; default: return '#e6a23c'; }
+  switch (status) {
+    case '已完成': return '#00800040';  // 透明绿色
+    case '进行中': return '#9E9E9E40';  // 透明黄色
+    case '待执行': return '#F5F5DC40';  // 透明橙色
+    case '已延期': return '#DAA52040';  // 透明红色
+    case '已取消': return '#80808040';  // 透明灰色
+    default: return '#FFFFFFFF';       // 透明白色
+  }
 };
+
+
+
 
 const calendarOptions = reactive({
   plugins: [dayGridPlugin, interactionPlugin],
@@ -73,3 +88,144 @@ const calendarOptions = reactive({
   },
 });
 </script>
+
+<style scoped>
+/* 黑色背景容器 */
+.calendar-container {
+  position: relative;
+  background: linear-gradient(145deg, #0a0a0a, #121212);
+  border-radius: 16px;
+  padding: 24px;
+  min-height: 600px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+}
+
+/* 玻璃框 - 亮蓝色边框 */
+.glass-card {
+  background: rgba(0, 212, 255, 0.15);
+  border: 1px solid var(--primary-color, #00d4ff);
+  backdrop-filter: blur(16px);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 1200px;
+  box-shadow: 
+    0 8px 30px rgba(0, 212, 255, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+/* 日历组件基础 */
+.fc {
+  background-color: transparent;
+  border-radius: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+/* 文字颜色 */
+.fc, .fc * {
+  color: var(--primary-color, #00d4ff) !important;
+}
+
+/* 事件卡片 - 增强对比度样式 */
+.fc-event {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05); /* 半透明背景 */
+  border-radius: 4px;
+  border-left: 3px solid;
+  font-size: 11px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  
+  /* 新增：增加内阴影提升对比度 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 
+              inset 0 1px 3px rgba(255, 255, 255, 0.05);
+}
+
+.fc-event:hover {
+  background: rgba(0, 212, 255, 0.15); /* 悬停时背景更明显 */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2),
+              inset 0 1px 3px rgba(255, 255, 255, 0.1);
+}
+
+/* 状态颜色 - 增强边框和背景 */
+.fc-event[style*="rgba(103, 194, 58"] { 
+  border-left-color: #55ff00; 
+  background-color: rgba(103, 194, 58, 0.1); /* 增加同色系背景 */
+}
+.fc-event[style*="rgba(0, 212, 255"] { 
+  border-left-color: #872d81; 
+  background-color: rgba(0, 212, 255, 0.1); /* 增加同色系背景 */
+}
+.fc-event[style*="rgba(144, 147, 153"] { 
+  border-left-color: #909399; 
+  background-color: rgba(144, 147, 153, 0.1); /* 增加同色系背景 */
+}
+.fc-event[style*="rgba(230, 162, 60"] { 
+  border-left-color: #ff6302; 
+  background-color: rgba(230, 162, 60, 0.1); /* 增加同色系背景 */
+}
+
+.fc-event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+  color: #e0e0e0 !important;
+  font-weight: 500; /* 增加文字粗细 */
+}
+
+
+.fc-event-selected .fc-event-main {
+  background: rgba(0, 212, 255, 0.2) !important;
+  border-left-width: 4px;
+  transform: translateX(2px);
+}
+
+.fc-event-selected .fc-event-title {
+  color: #fff !important;
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+}
+
+/* 响应式布局 */
+@media (max-width: 1024px) {
+  .calendar-container {
+    padding: 16px;
+  }
+  
+  .glass-card {
+    padding: 16px;
+  }
+  
+  .fc-daygrid-day {
+    min-height: 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .fc-toolbar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .fc-toolbar-chunk {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .fc-daygrid-day {
+    min-height: 60px;
+  }
+}
+
+
+</style>
