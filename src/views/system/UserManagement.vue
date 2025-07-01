@@ -404,27 +404,6 @@ const handleCurrentChange = (val) => { pagination.currentPage = val; fetchUsers(
 }
 
 
-/* 页面底部装饰元素 - 地铁巡线车动画 */
-.defect-management-container::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  height: 80px;
-  /* SVG背景图，包含轨道、列车和信号灯 */
-  background: url("data:image/svg+xml,...");
-  background-size: 1200px 80px;
-  z-index: 0;
-  opacity: 0.8;
-}
-
-/* 地铁动画关键帧 */
-@keyframes trainMove {
-  0% { background-position: 0 0; }
-  100% { background-position: -1200px 0; }
-}
-
 /* 应用地铁动画 */
 .defect-management-container::before {
   animation: trainMove 30s linear infinite;
@@ -740,4 +719,26 @@ const handleCurrentChange = (val) => { pagination.currentPage = val; fetchUsers(
   gap: 10px;
 }
 
+
+/* 页面底部地铁巡线车装饰 */
+.defect-management-container::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  height: 80px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 80' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23002b33'/%3E%3Cstop offset='100%25' stop-color='%23004d5a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,60 Q300,30 600,60 T1200,60' fill='none' stroke='%2300d4ff' stroke-width='2' stroke-opacity='0.6'/%3E%3Cpath d='M0,65 Q300,35 600,65 T1200,65' fill='none' stroke='%2300d4ff' stroke-width='1' stroke-opacity='0.4'/%3E%3C!-- 地铁轨道 --%3E%3Crect x='0' y='70' width='1200' height='5' fill='url(%23grad)'/%3E%3C!-- 巡线车 --%3E%3Cg transform='translate(100,45)'%3E%3Crect x='0' y='0' width='60' height='15' rx='3' fill='%23005566' stroke='%2300d4ff' stroke-width='1'/%3E%3Crect x='10' y='-5' width='40' height='5' fill='%23007788'/%3E%3Ccircle cx='15' cy='15' r='5' fill='%23003344'/%3E%3Ccircle cx='45' cy='15' r='5' fill='%23003344'/%3E%3Cpath d='M20,5 Q30,-5 40,5' fill='none' stroke='%2300d4ff' stroke-width='1'/%3E%3Cline x1='25' y1='0' x2='35' y2='0' stroke='%2300d4ff' stroke-width='1'/%3E%3C/g%3E%3C!-- 信号灯 --%3E%3Ccircle cx='900' cy='40' r='4' fill='%2300ff00' filter='url(%23glow)'/%3E%3Ccircle cx='950' cy='35' r='3' fill='%23ff6600' filter='url(%23glow)'/%3E%3Cdefs%3E%3Cfilter id='glow' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='2' result='blur'/%3E%3CfeComposite in='SourceGraphic' in2='blur' operator='over'/%3E%3C/filter%3E%3C/defs%3E%3C/svg%3E");
+  background-size: 1200px 80px;
+  z-index: 0;
+  opacity: 0.8;
+}
+
+@keyframes trainMove {
+  0% { background-position: 0 0; }
+  100% { background-position: -1200px 0; }
+}
+.defect-management-container::before {
+  animation: trainMove 30s linear infinite;
+}
 </style>
