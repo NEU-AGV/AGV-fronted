@@ -41,7 +41,7 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="关联任务" prop="linkedTaskId">
-                  <el-select v-model="defectForm.linkedTaskId" placeholder="请选择或搜索关联任务" filterable style="width: 100%;">
+                  <el-select v-model="defectForm.linkedTaskId" placeholder="请选择或搜索关联任务" filterable style="width: 100%;" popper-class="theme-tunnel-popper">
                     <el-option v-for="task in mockTasks" :key="task.taskId" :label="task.taskName" :value="task.taskId" />
                   </el-select>
                 </el-form-item>
@@ -65,18 +65,19 @@
               </el-col>
             </el-row>
             <el-form-item label="严重程度" prop="severity">
-              <el-select v-model="defectForm.severity" placeholder="请选择严重程度" style="width: 100%;">
+              <el-select v-model="defectForm.severity" placeholder="请选择严重程度" style="width: 100%;" popper-class="theme-tunnel-popper">
                 <el-option label="高" value="高" />
                 <el-option label="中" value="中" />
                 <el-option label="低" value="低" />
               </el-select>
             </el-form-item>
             <el-form-item label="缺陷描述" prop="description">
-              <el-input v-model="defectForm.description" type="textarea" :rows="3" placeholder="请输入详细描述" />
+              <el-input v-model="defectForm.description"  placeholder="请输入详细描述" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="handleSubmit" :disabled="!selectedDefectImage">提交缺陷记录</el-button>
-            </el-form-item>
+              <el-button type="primary" round class="submit-button" @click="handleSubmit" :disabled="!selectedDefectImage">提交缺陷记录
+              </el-button>
+</el-form-item>
           </el-form>
         </el-card>
       </el-col>
@@ -221,38 +222,232 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.analysis-container { padding: 20px; height: calc(100vh - 100px); }
-.left-panel, .right-panel { display: flex; flex-direction: column; height: 100%; gap: 20px; }
-.video-card { flex-shrink: 0; }
-.gallery-card { flex-grow: 1; display: flex; flex-direction: column; }
-.form-card { height: 100%; overflow-y: auto; }
-.video-player { width: 100%; height: auto; display: block; background-color: #000; }
-:deep(.gallery-card .el-card__body) { flex-grow: 1; overflow-y: auto; }
-.image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
-.gallery-item { position: relative; cursor: pointer; border: 2px solid transparent; transition: border-color 0.3s; }
-.gallery-item.active { border-color: var(--el-color-primary); }
-.gallery-item .el-image { width: 100%; height: 120px; }
-.item-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; padding: 4px; text-align: center; }
-/* 新增样式 */
+.analysis-container {
+  background-color: #0f1419;
+  color: #fff;
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.box-card {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  padding: 15px;
+  border-radius: 4px;
+}
+/* --- 1. 美化搜索区域的输入框和选择框 --- */
+:deep(.form-card .el-input__wrapper),
+:deep(.form-card .el-date-editor .el-range-input),
+:deep(.form-card .el-select__wrapper) {
+  background-color: #0f1419 !important; /* 设置为页面的主背景色 */
+  box-shadow: none !important; /* 移除 Element Plus 自带的阴影 */
+  border: 1px solid rgba(0, 212, 255, 0.3) !important; /* 使用主题边框色 */
+  color: #c1f0ff; /* 设置输入文字的颜色 */
+}
+
+/* 修复日期选择器在深色背景下的文字颜色 */
+:deep(.form-card .el-range-input) {
+  color: #c1f0ff !important;
+}
+
+/* 修复下拉框箭头的颜色 */
+:deep(.form-card .el-select .el-select__caret) {
+  color: #00d4ff;
+}
+
+.video-card .el-card__header span,
+.right-panel .form-card .el-card__header span,
+.gallery-card .el-card__header span {
+  font-size: 16px;
+  margin-bottom: 15px;
+  color: #00d4ff;
+}
+
 .selected-image-preview {
   width: 100%;
   height: 250px;
-  background-color: #f5f7fa;
+  background-color: rgba(0, 212, 255, 0.1); /* 改为半透明蓝色背景，与示例一致 */
+  border: 1px solid rgba(0, 212, 255, 0.3); /* 改为实线边框，与示例一致 */
+  border-radius: 4px;
+  margin-bottom: 20px;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  border: 1px dashed var(--el-border-color);
+  overflow: hidden;
 }
+
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+}
+
 .image-placeholder {
-  color: #909399;
+  color: rgba(0, 212, 255, 0.7); /* 改为半透明蓝色文字，与示例一致 */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
 }
+
 .image-placeholder .el-icon {
   font-size: 40px;
+  color: #00d4ff; /* 主色调图标，与示例一致 */
 }
+
+.image-placeholder span {
+  font-size: 14px;
+}
+
+/* 表单整体文字颜色 */
+:deep(.form-card) {
+  color: #00d4ff !important;
+}
+
+/* 表单标签颜色 */
+:deep(.form-card .el-form-item__label) {
+  color: #00d4ff !important;
+}
+.form-card .el-input__inner:focus {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
+}
+
+.form-card .el-input__inner::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.form-card .el-input__inner:focus {
+  outline: none;
+}
+
+/* 提交按钮样式 */
+.submit-button {
+  background: #00d4ff;
+  border-color: #00d4ff;
+  color: #0f1419;
+  border-radius: 20px;
+  height: 40px;
+  font-size: 16px;
+  padding: 0 20px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.submit-button:hover {
+  background: #33e0ff;
+  border-color: #33e0ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 10px #00d4ff(0, 212, 255, 0.4);
+}
+
+.submit-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 5px #00d4ff(0, 212, 255, 0.4);
+}
+
+.submit-button.is-disabled,
+.submit-button.is-disabled:hover {
+  background: #00d4ff(0, 212, 255, 0.3);
+  border-color: #00d4ff(0, 212, 255, 0.3);
+  color: rgba(15, 20, 25, 0.6);
+  cursor: not-allowed;
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.left-panel, .right-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 20px;
+}
+
+.gallery-card {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-card {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.video-player {
+  width: 100%;
+  height: auto;
+  display: block;
+  background-color: #000;
+}
+
+:deep(.gallery-card .el-card__body) {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.image-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.gallery-item {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.gallery-item.active {
+  border-color: #00d4ff; /* 改为示例中的主色调，而非Element默认蓝色 */
+}
+
+.gallery-item .el-image {
+  width: 100%;
+  height: 120px;
+}
+
+.item-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px;
+  text-align: center;
+}
+
+.selected-image-preview:not(.preview-image) {
+  background-color: rgba(248, 251, 252, 0); /* 覆盖之前错误的背景色 */
+}
+/* 页面底部地铁巡线车装饰 */
+.defect-management-container::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  height: 80px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 80' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23002b33'/%3E%3Cstop offset='100%25' stop-color='%23004d5a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,60 Q300,30 600,60 T1200,60' fill='none' stroke='%2300d4ff' stroke-width='2' stroke-opacity='0.6'/%3E%3Cpath d='M0,65 Q300,35 600,65 T1200,65' fill='none' stroke='%2300d4ff' stroke-width='1' stroke-opacity='0.4'/%3E%3C!-- 地铁轨道 --%3E%3Crect x='0' y='70' width='1200' height='5' fill='url(%23grad)'/%3E%3C!-- 巡线车 --%3E%3Cg transform='translate(100,45)'%3E%3Crect x='0' y='0' width='60' height='15' rx='3' fill='%23005566' stroke='%2300d4ff' stroke-width='1'/%3E%3Crect x='10' y='-5' width='40' height='5' fill='%23007788'/%3E%3Ccircle cx='15' cy='15' r='5' fill='%23003344'/%3E%3Ccircle cx='45' cy='15' r='5' fill='%23003344'/%3E%3Cpath d='M20,5 Q30,-5 40,5' fill='none' stroke='%2300d4ff' stroke-width='1'/%3E%3Cline x1='25' y1='0' x2='35' y2='0' stroke='%2300d4ff' stroke-width='1'/%3E%3C/g%3E%3C!-- 信号灯 --%3E%3Ccircle cx='900' cy='40' r='4' fill='%2300ff00' filter='url(%23glow)'/%3E%3Ccircle cx='950' cy='35' r='3' fill='%23ff6600' filter='url(%23glow)'/%3E%3Cdefs%3E%3Cfilter id='glow' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='2' result='blur'/%3E%3CfeComposite in='SourceGraphic' in2='blur' operator='over'/%3E%3C/filter%3E%3C/defs%3E%3C/svg%3E");
+  background-size: 1200px 80px;
+  z-index: 0;
+  opacity: 0.8;
+}
+
+@keyframes trainMove {
+  0% { background-position: 0 0; }
+  100% { background-position: -1200px 0; }
+}
+.defect-management-container::before {
+  animation: trainMove 30s linear infinite;
+}
+
 </style>
