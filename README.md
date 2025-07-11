@@ -6,7 +6,7 @@
 
 # AGV Tunnel Platform - frontend
 
-一个使用 **Vue 3 + Vite** 搭建的单页应用（SPA），配合后端服务实现以下能力：
+一个使用 **Vue 3 + Vite** 搭建的应用，配合后端服务实现以下能力：
 
 - 巡检任务管理  
 - 缺陷登记与流转  
